@@ -24,6 +24,10 @@ export default function Home() {
   const [language, setLanguage] = useState("en");
   const [examDate, setExamDate] = useState("");
   const [vaultNotes, setVaultNotes] = useState("");
+  const [vaultFiles, setVaultFiles] = useState<File[]>([]);
+  const [vaultDocs, setVaultDocs] = useState<Array<{ id: string; name: string; chars: number }>>(
+    []
+  );
   const [researchSources, setResearchSources] = useState("");
   const [includeResearch, setIncludeResearch] = useState(false);
   const [includeCoach, setIncludeCoach] = useState(true);
@@ -40,6 +44,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [examAnswers, setExamAnswers] = useState<Record<string, string>>({});
   const [examResults, setExamResults] = useState<Record<string, GradeResult>>({});
+  const [examStarted, setExamStarted] = useState(false);
+  const [examTimeLeft, setExamTimeLeft] = useState<number | null>(null);
 
   const [coachMode, setCoachMode] = useState<CoachMode>("coach");
   const [coachInput, setCoachInput] = useState("");
@@ -101,6 +107,22 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [job]);
 
+  useEffect(() => {
+    if (!examStarted || !pack) return;
+    setExamTimeLeft(pack.exam.totalTimeMinutes * 60);
+    const timer = setInterval(() => {
+      setExamTimeLeft((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [examStarted, pack]);
+
   const handleGenerate = async () => {
     if (!youtubeApiKey || !geminiApiKey) {
       setError("Provide both YouTube and Gemini API keys.");
@@ -112,6 +134,28 @@ export default function Home() {
     setPack(null);
     setExamAnswers({});
     setExamResults({});
+    setExamStarted(false);
+    setExamTimeLeft(null);
+
+    let vaultDocIds: string[] = vaultDocs.map((doc) => doc.id);
+    if (vaultFiles.length) {
+      const formData = new FormData();
+      vaultFiles.forEach((file) => formData.append("files", file));
+      const uploadResponse = await fetch("/api/vault", {
+        method: "POST",
+        body: formData
+      });
+      if (!uploadResponse.ok) {
+        setError("Failed to ingest vault documents.");
+        setIsSubmitting(false);
+        return;
+      }
+      const uploadData = (await uploadResponse.json()) as {
+        docs?: Array<{ id: string; name: string; chars: number }>;
+      };
+      setVaultDocs(uploadData.docs ?? []);
+      vaultDocIds = (uploadData.docs ?? []).map((doc) => doc.id);
+    }
 
     const response = await fetch("/api/generate-pack", {
       method: "POST",
@@ -123,6 +167,7 @@ export default function Home() {
         models: { pro: proModel, flash: flashModel },
         examDate: examDate || undefined,
         vaultNotes: vaultNotes || undefined,
+        vaultDocIds: vaultDocIds.length ? vaultDocIds : undefined,
         researchSources: researchSources
           .split(/\r?\n/)
           .map((line) => line.trim())
@@ -166,6 +211,24 @@ export default function Home() {
       .map((id) => pack.questions.find((question) => question.id === id))
       .filter(Boolean) as Question[];
   }, [pack]);
+
+  const examScore = useMemo(() => {
+    const results = Object.values(examResults);
+    if (!results.length) return null;
+    const correct = results.filter((result) => result.correct).length;
+    return {
+      correct,
+      total: results.length,
+      percent: Math.round((correct / results.length) * 100)
+    };
+  }, [examResults]);
+
+  const formatTime = (totalSeconds: number | null) => {
+    if (totalSeconds === null) return "";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
 
   const handleAnswerCheck = async (question: Question) => {
     const answer = examAnswers[question.id];
@@ -417,6 +480,27 @@ export default function Home() {
                 />
               </div>
               <div className="form-row">
+                <label htmlFor="vault-files">Upload docs (PDF/TXT)</label>
+                <input
+                  id="vault-files"
+                  type="file"
+                  multiple
+                  onChange={(event) =>
+                    setVaultFiles(Array.from(event.target.files ?? []))
+                  }
+                />
+                {vaultDocs.length ? (
+                  <div className="list">
+                    {vaultDocs.map((doc) => (
+                      <div key={doc.id} className="note-block">
+                        <strong>{doc.name}</strong>
+                        <p>{doc.chars} chars indexed</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="form-row">
                 <label htmlFor="research">Research source URLs (one per line)</label>
                 <textarea
                   id="research"
@@ -537,6 +621,11 @@ export default function Home() {
                 <div key={note.lectureId} className="note-block">
                   <div className="kicker">{note.lectureTitle}</div>
                   <p>{note.summary}</p>
+                  {!note.verified && note.verificationNotes?.length ? (
+                    <p className="feedback bad">
+                      Needs review: {note.verificationNotes[0]}
+                    </p>
+                  ) : null}
                   <div className="list">
                     {note.sections.map((section) => (
                       <div key={section.heading}>
@@ -562,6 +651,17 @@ export default function Home() {
                       </a>
                     ))}
                   </div>
+                  {note.visuals?.length ? (
+                    <div className="visuals">
+                      {note.visuals.map((visual, index) => (
+                        <div key={`${visual.timestamp}-${index}`} className="visual-card">
+                          <img src={visual.url} alt={visual.description} />
+                          <div className="kicker">{visual.timestamp}</div>
+                          <p>{visual.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -581,6 +681,11 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                    ) : null}
+                    {!question.verified && question.verificationNotes?.length ? (
+                      <p className="feedback bad">
+                        Needs review: {question.verificationNotes[0]}
+                      </p>
                     ) : null}
                     <div className="pill-list">
                       {question.citations.slice(0, 2).map((citation) => (
@@ -605,6 +710,18 @@ export default function Home() {
               <p className="kicker">
                 {pack.exam.totalTimeMinutes} min - {examQuestions.length} questions
               </p>
+              {examStarted ? (
+                <p className="kicker">Time left: {formatTime(examTimeLeft)}</p>
+              ) : (
+                <button className="button secondary" onClick={() => setExamStarted(true)}>
+                  Start timed exam
+                </button>
+              )}
+              {examScore ? (
+                <p className="kicker">
+                  Score: {examScore.correct}/{examScore.total} ({examScore.percent}%)
+                </p>
+              ) : null}
               <div className="list">
                 {examQuestions.map((question) => {
                   const result = examResults[question.id];

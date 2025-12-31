@@ -36,6 +36,23 @@ export default async function PackPage({
         </section>
 
         <section className="grid-2">
+          {pack.researchReport ? (
+            <div className="card">
+              <div className="section-title">Research report</div>
+              <p>{pack.researchReport.summary}</p>
+              <div className="list">
+                {pack.researchReport.sources.map((source) => (
+                  <div key={source.url} className="note-block">
+                    <strong>{source.title}</strong>
+                    <p>{source.excerpt}</p>
+                    <a href={source.url} target="_blank" rel="noreferrer">
+                      {source.url}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="card">
             <div className="section-title">Blueprint</div>
             <div className="list">
@@ -70,6 +87,17 @@ export default async function PackPage({
                     </a>
                   ))}
                 </div>
+                {note.visuals?.length ? (
+                  <div className="visuals">
+                    {note.visuals.map((visual, index) => (
+                      <div key={`${visual.timestamp}-${index}`} className="visual-card">
+                        <img src={visual.url} alt={visual.description} />
+                        <div className="kicker">{visual.timestamp}</div>
+                        <p>{visual.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

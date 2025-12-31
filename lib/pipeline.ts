@@ -1,6 +1,6 @@
 import { buildBlueprint } from "./verimap";
 import { generateNotes } from "./verinotes";
-import { generateQuestionBank } from "./veribank";
+import { generateQuestionBank, regenerateQuestion } from "./veribank";
 import { verifyNotes, verifyQuestion } from "./veriverify";
 import { buildExam } from "./veriexam";
 import { fetchTranscriptSegments, buildTranscriptText } from "./transcript";
@@ -13,7 +13,7 @@ import {
 } from "./youtube";
 import { createMasteryRecord } from "./mastery";
 import { delay, makeId } from "./utils";
-import { getJob, setJob, setPack, updateJob } from "./store";
+import { getJob, getTranscript, getVaultDoc, setJob, setPack, setTranscript, updateJob } from "./store";
 import { buildResearchReport, fetchResearchSources } from "./research";
 import { GeneratePackOptions, JobStatus, Pack, TranscriptSegment } from "./types";
 
@@ -27,6 +27,7 @@ export type PipelineInputs = {
   };
   examDate?: string;
   vaultNotes?: string;
+  vaultDocIds?: string[];
   researchSources?: string[];
   options: GeneratePackOptions;
 };
@@ -168,9 +169,21 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
 
     const notes = [] as Pack["notes"];
     const transcripts: Record<string, TranscriptSegment[]> = {};
-    const extraContext = [inputs.vaultNotes, inputs.examDate ? `Exam date: ${inputs.examDate}` : ""]
+    const vaultDocs = inputs.vaultDocIds?.length
+      ? await Promise.all(inputs.vaultDocIds.map((id) => getVaultDoc(id)))
+      : [];
+    const vaultDocText = vaultDocs
       .filter(Boolean)
+      .map((doc) => `Document: ${doc!.name}\n${doc!.content}`)
       .join("\n");
+    const extraContext = [
+      inputs.vaultNotes,
+      vaultDocText,
+      inputs.examDate ? `Exam date: ${inputs.examDate}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 20000);
 
     for (let index = 0; index < lectures.length; index += 1) {
       const lecture = lectures[index];
@@ -180,11 +193,14 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
           step: `Transcribing ${lecture.title}`
         });
 
-        const segments = await fetchTranscriptSegments(
-          lecture.videoId,
-          inputs.options.language
-        );
+        const cached = await getTranscript(lecture.videoId);
+        const segments =
+          cached ??
+          (await fetchTranscriptSegments(lecture.videoId, inputs.options.language));
         transcripts[lecture.id] = segments;
+        if (!cached) {
+          await setTranscript(lecture.videoId, segments);
+        }
 
         await updateJob(jobId, {
           step: `Generating notes for ${lecture.title}`
@@ -249,19 +265,92 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
       extraContext
     );
 
+    await updateJob(jobId, {
+      step: "Verifying questions",
+      progress: 0.72
+    });
+
     const transcriptContext = notes
       .map((note) => buildTranscriptText(transcripts[note.lectureId] ?? []))
       .join("\n");
 
     const verifiedQuestions: Pack["questions"] = [];
     for (const question of questions) {
-      const verified = await verifyQuestion(
-        question,
+      let current = question;
+      let verified = await verifyQuestion(
+        current,
         transcriptContext,
         inputs.geminiApiKey,
         inputs.models.flash
       );
+
+      if (!verified.verified) {
+        const noteMatch = notes.find((note) =>
+          current.tags.some(
+            (tag) => tag === note.lectureTitle || tag === note.lectureId
+          )
+        );
+        if (noteMatch) {
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const issues = verified.verificationNotes?.join(" | ") ?? "Unsupported answer";
+            current = await regenerateQuestion(
+              noteMatch,
+              inputs.geminiApiKey,
+              inputs.models.pro,
+              issues,
+              extraContext,
+              current.id
+            );
+            verified = await verifyQuestion(
+              current,
+              transcriptContext,
+              inputs.geminiApiKey,
+              inputs.models.flash
+            );
+            if (verified.verified) {
+              break;
+            }
+          }
+        }
+      }
+
       verifiedQuestions.push(verified);
+    }
+
+    const coverage = new Map<string, number>();
+    verifiedQuestions.forEach((question) => {
+      blueprint.topics.forEach((topic) => {
+        if (
+          question.tags.includes(topic.title) ||
+          question.tags.includes(topic.id)
+        ) {
+          coverage.set(topic.id, (coverage.get(topic.id) ?? 0) + 1);
+        }
+      });
+    });
+
+    const missingTopics = blueprint.topics.filter(
+      (topic) => !coverage.has(topic.id)
+    );
+    for (const topic of missingTopics) {
+      const noteMatch = notes.find((note) => note.lectureTitle === topic.title);
+      if (!noteMatch) continue;
+      const extraQuestions = await generateQuestionBank(
+        [noteMatch],
+        inputs.geminiApiKey,
+        inputs.models.pro,
+        1,
+        extraContext
+      );
+      for (const question of extraQuestions) {
+        const verified = await verifyQuestion(
+          question,
+          transcriptContext,
+          inputs.geminiApiKey,
+          inputs.models.flash
+        );
+        verifiedQuestions.push(verified);
+      }
     }
 
     await updateJob(jobId, {

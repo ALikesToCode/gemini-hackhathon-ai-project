@@ -58,6 +58,54 @@ const QUESTION_SCHEMA = {
   required: ["questions"]
 };
 
+const SINGLE_QUESTION_SCHEMA = {
+  type: "object",
+  properties: {
+    type: { type: "string" },
+    difficulty: { type: "string" },
+    bloom: { type: "string" },
+    timeSeconds: { type: "number" },
+    tags: { type: "array", items: { type: "string" } },
+    stem: { type: "string" },
+    options: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          text: { type: "string" }
+        },
+        required: ["id", "text"]
+      }
+    },
+    answer: { type: "string" },
+    rationale: { type: "string" },
+    citations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label: { type: "string" },
+          timestamp: { type: "string" },
+          snippet: { type: "string" }
+        },
+        required: ["label", "timestamp", "snippet"]
+      }
+    }
+  },
+  required: [
+    "type",
+    "difficulty",
+    "bloom",
+    "timeSeconds",
+    "tags",
+    "stem",
+    "answer",
+    "rationale",
+    "citations"
+  ]
+};
+
 function timestampToSeconds(timestamp: string) {
   const [min, sec] = timestamp.split(":").map((part) => Number(part));
   if (Number.isNaN(min) || Number.isNaN(sec)) return 0;
@@ -154,4 +202,75 @@ Return JSON matching the schema.`;
   }
 
   return questions;
+}
+
+export async function regenerateQuestion(
+  note: NoteDocument,
+  apiKey: string,
+  model: string,
+  issues: string,
+  extraContext?: string,
+  existingId?: string
+): Promise<Question> {
+  const prompt = `Regenerate one exam question for this lecture notes. Fix these issues: ${issues}.
+Lecture: ${note.lectureTitle}
+Notes summary: ${note.summary}
+Key takeaways: ${note.keyTakeaways.join(" | ")}
+Use the timestamps in citations.
+${extraContext ? `Additional context:\n${extraContext}` : ""}
+Return JSON matching the schema.`;
+
+  const response = await generateJson<{
+    type: Question["type"];
+    difficulty: Question["difficulty"];
+    bloom: Question["bloom"];
+    timeSeconds: number;
+    tags: string[];
+    stem: string;
+    options?: Question["options"];
+    answer: string;
+    rationale: string;
+    citations: { label: string; timestamp: string; snippet?: string }[];
+  }>({
+    apiKey,
+    model,
+    prompt,
+    config: {
+      responseSchema: SINGLE_QUESTION_SCHEMA,
+      maxOutputTokens: 1200,
+      temperature: 0.45
+    }
+  });
+
+  const tags = response.tags.includes(note.lectureTitle)
+    ? response.tags
+    : [...response.tags, note.lectureTitle];
+  const citations = response.citations.map((citation) =>
+    toCitation(
+      {
+        id: note.lectureId,
+        title: note.lectureTitle,
+        url: note.lectureUrl,
+        videoId: note.videoId,
+        durationSeconds: 0,
+        order: 0
+      },
+      citation
+    )
+  );
+
+  return {
+    id: existingId ?? `q_${note.lectureId}_${Date.now()}`,
+    type: response.type,
+    difficulty: response.difficulty,
+    bloom: response.bloom,
+    timeSeconds: response.timeSeconds,
+    tags,
+    stem: response.stem,
+    options: response.options,
+    answer: response.answer,
+    rationale: response.rationale,
+    citations,
+    verified: false
+  };
 }

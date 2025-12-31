@@ -76,6 +76,16 @@ export async function buildPdf(pack: Pack) {
     note.keyTakeaways.forEach((takeaway) => {
       drawParagraph(`• ${takeaway}`, 10, regular);
     });
+    if (note.visuals?.length) {
+      drawParagraph("Visual references:", 10, bold);
+      note.visuals.forEach((visual) => {
+        drawParagraph(
+          `• [${visual.timestamp}] ${visual.description} (${visual.url})`,
+          9,
+          regular
+        );
+      });
+    }
     drawLine(" ", 8, regular);
   });
 

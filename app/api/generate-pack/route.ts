@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     models,
     examDate: parsed.data.examDate,
     vaultNotes: parsed.data.vaultNotes,
+    vaultDocIds: parsed.data.vaultDocIds,
     researchSources: parsed.data.researchSources,
     options
   });

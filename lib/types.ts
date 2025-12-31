@@ -37,6 +37,12 @@ export type Citation = {
   snippet?: string;
 };
 
+export type VisualReference = {
+  url: string;
+  timestamp: string;
+  description: string;
+};
+
 export type NoteSection = {
   heading: string;
   bullets: string[];
@@ -54,6 +60,7 @@ export type NoteDocument = {
   citations: Citation[];
   verified: boolean;
   verificationNotes?: string[];
+  visuals?: VisualReference[];
 };
 
 export type QuestionOption = {
@@ -167,4 +174,11 @@ export type PackSummary = {
   title: string;
   createdAt: string;
   input: string;
+};
+
+export type VaultDoc = {
+  id: string;
+  name: string;
+  content: string;
+  createdAt: string;
 };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { coachSchema } from "../../../lib/schemas";
 import { getPack } from "../../../lib/store";
 import { buildCoachPrompt } from "../../../lib/coach";
+import { fetchResearchSources } from "../../../lib/research";
 import { streamText } from "../../../lib/gemini";
 
 export async function POST(request: Request) {
@@ -27,10 +28,22 @@ export async function POST(request: Request) {
     parsed.data.mode
   );
 
+  let enrichedPrompt = prompt;
+  if (parsed.data.mode === "assist") {
+    const urls = parsed.data.message.match(/https?:\/\/[^\s]+/g) ?? [];
+    if (urls.length) {
+      const sources = await fetchResearchSources(urls.slice(0, 2));
+      const appendix = sources
+        .map((source) => `URL: ${source.url}\nExcerpt: ${source.excerpt}`)
+        .join("\n\n");
+      enrichedPrompt = `${prompt}\n\nAdditional resources:\n${appendix}`;
+    }
+  }
+
   const textStream = await streamText({
     apiKey: parsed.data.geminiApiKey,
     model: parsed.data.model,
-    prompt,
+    prompt: enrichedPrompt,
     system,
     config: {
       temperature: 0.5,

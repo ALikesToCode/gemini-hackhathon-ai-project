@@ -36,3 +36,4 @@ If KV is not configured, the app falls back to a local JSON file store in `data/
 - Transcripts are fetched from YouTube timed text endpoints; some videos may not expose captions.
 - For best results, keep playlists under 20-30 lectures per run to avoid long generation times.
 - Models are configurable in the UI (defaults: `gemini-1.5-pro`, `gemini-1.5-flash`).
+- Upload PDFs/TXT in the Vault section to ground generation against syllabus or slides.

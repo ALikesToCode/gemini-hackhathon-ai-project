@@ -12,6 +12,7 @@ export const generatePackSchema = z.object({
     .optional(),
   examDate: z.string().optional(),
   vaultNotes: z.string().optional(),
+  vaultDocIds: z.array(z.string()).optional(),
   researchSources: z.array(z.string().url()).optional(),
   options: z
     .object({

@@ -55,7 +55,29 @@ export async function verifyQuestion(
   apiKey: string,
   model: string
 ): Promise<Question> {
+  const heuristicIssues: string[] = [];
+  if (question.type === "mcq") {
+    if (!question.options || question.options.length < 3) {
+      heuristicIssues.push("MCQ has fewer than 3 options.");
+    }
+    const optionTexts = question.options?.map((option) => option.text.trim()) ?? [];
+    const uniqueOptions = new Set(optionTexts.map((option) => option.toLowerCase()));
+    if (uniqueOptions.size !== optionTexts.length) {
+      heuristicIssues.push("MCQ options include duplicates.");
+    }
+    if (question.answer && optionTexts.length && !optionTexts.includes(question.answer.trim())) {
+      heuristicIssues.push("Answer is not present in the options.");
+    }
+  }
+  if (question.type === "true_false") {
+    const normalized = question.answer.trim().toLowerCase();
+    if (normalized !== "true" && normalized !== "false") {
+      heuristicIssues.push("True/false answer is not 'true' or 'false'.");
+    }
+  }
+
   const prompt = `Check whether the answer and rationale are supported by the context.
+Also flag ambiguity (more than one correct option) and weak distractors if this is MCQ.
 Context:
 ${context}
 Question: ${question.stem}
@@ -74,9 +96,11 @@ Return JSON matching the schema.`;
     }
   });
 
+  const issues = [...heuristicIssues, ...(response.issues ?? [])];
+  const supported = Boolean(response.supported);
   return {
     ...question,
-    verified: response.supported,
-    verificationNotes: response.issues
+    verified: supported && heuristicIssues.length === 0,
+    verificationNotes: issues
   };
 }

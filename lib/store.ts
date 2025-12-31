@@ -1,7 +1,7 @@
 import { kv } from "@vercel/kv";
 import { promises as fs } from "fs";
 import path from "path";
-import { JobStatus, Pack, PackSummary } from "./types";
+import { JobStatus, Pack, PackSummary, TranscriptSegment, VaultDoc } from "./types";
 
 const STORE_PATH = path.join(process.cwd(), "data", "store.json");
 const USE_KV = Boolean(
@@ -11,6 +11,8 @@ const USE_KV = Boolean(
 type LocalStoreShape = {
   jobs: Record<string, JobStatus>;
   packs: Record<string, Pack>;
+  vault: Record<string, VaultDoc>;
+  transcripts: Record<string, TranscriptSegment[]>;
 };
 
 async function readLocalStore(): Promise<LocalStoreShape> {
@@ -19,10 +21,12 @@ async function readLocalStore(): Promise<LocalStoreShape> {
     const parsed = JSON.parse(raw) as LocalStoreShape;
     return {
       jobs: parsed.jobs ?? {},
-      packs: parsed.packs ?? {}
+      packs: parsed.packs ?? {},
+      vault: parsed.vault ?? {},
+      transcripts: parsed.transcripts ?? {}
     };
   } catch {
-    return { jobs: {}, packs: {} };
+    return { jobs: {}, packs: {}, vault: {}, transcripts: {} };
   }
 }
 
@@ -86,6 +90,53 @@ export async function updatePack(packId: string, updates: Partial<Pack>) {
   const next = { ...current, ...updates };
   await setPack(next);
   return next;
+}
+
+export async function getVaultDoc(docId: string) {
+  if (USE_KV) {
+    return (await kv.get<VaultDoc>(`vault:${docId}`)) ?? null;
+  }
+  const store = await readLocalStore();
+  return store.vault[docId] ?? null;
+}
+
+export async function setVaultDoc(doc: VaultDoc) {
+  if (USE_KV) {
+    await kv.set(`vault:${doc.id}`, doc);
+    await kv.sadd("vault:index", doc.id);
+    return;
+  }
+  const store = await readLocalStore();
+  store.vault[doc.id] = doc;
+  await writeLocalStore(store);
+}
+
+export async function listVaultDocs() {
+  if (USE_KV) {
+    const ids = (await kv.smembers<string>("vault:index")) ?? [];
+    const docs = await Promise.all(ids.map((id) => kv.get<VaultDoc>(`vault:${id}`)));
+    return docs.filter(Boolean) as VaultDoc[];
+  }
+  const store = await readLocalStore();
+  return Object.values(store.vault);
+}
+
+export async function getTranscript(videoId: string) {
+  if (USE_KV) {
+    return (await kv.get<TranscriptSegment[]>(`transcript:${videoId}`)) ?? null;
+  }
+  const store = await readLocalStore();
+  return store.transcripts[videoId] ?? null;
+}
+
+export async function setTranscript(videoId: string, segments: TranscriptSegment[]) {
+  if (USE_KV) {
+    await kv.set(`transcript:${videoId}`, segments);
+    return;
+  }
+  const store = await readLocalStore();
+  store.transcripts[videoId] = segments;
+  await writeLocalStore(store);
 }
 
 export async function listPacks(): Promise<PackSummary[]> {
