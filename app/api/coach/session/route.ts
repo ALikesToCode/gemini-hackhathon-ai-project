@@ -5,11 +5,18 @@ import { makeId } from "../../../../lib/utils";
 import { CoachSession } from "../../../../lib/types";
 
 export async function POST(request: Request) {
+  const traceId = makeId("trace");
+  const json = (body: unknown, init?: ResponseInit) => {
+    const response = NextResponse.json(body, init);
+    response.headers.set("x-request-id", traceId);
+    return response;
+  };
+
   const body = await request.json().catch(() => null);
   const parsed = coachSessionSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 }
     );
@@ -17,7 +24,7 @@ export async function POST(request: Request) {
 
   const pack = await getPack(parsed.data.packId);
   if (!pack) {
-    return NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    return json({ error: "Pack not found" }, { status: 404 });
   }
 
   const now = new Date().toISOString();
@@ -32,5 +39,5 @@ export async function POST(request: Request) {
 
   await setCoachSession(session);
 
-  return NextResponse.json({ sessionId: session.id });
+  return json({ sessionId: session.id });
 }

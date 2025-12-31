@@ -69,6 +69,7 @@ export async function fetchStoryboardSpec(videoId: string): Promise<StoryboardSp
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36"
       }
     });
+    if (!response.ok) return null;
     const html = await response.text();
     const match = html.match(SPEC_REGEX);
     if (!match?.[1]) return null;

@@ -132,6 +132,7 @@ export type JobStatus = {
   completedLectures: number;
   packId?: string;
   errors: string[];
+  traceId?: string;
   createdAt: string;
   updatedAt: string;
   currentLecture?: string;
@@ -221,6 +222,13 @@ export type CoachSession = {
   mode: "coach" | "viva" | "assist";
   history: { role: "user" | "assistant"; content: string }[];
   createdAt: string;
+  updatedAt: string;
+};
+
+export type PackDraft = {
+  jobId: string;
+  input: string;
+  notes: NoteDocument[];
   updatedAt: string;
 };
 

@@ -4,21 +4,27 @@ import { getPack } from "../../../lib/store";
 import { buildCoachPrompt } from "../../../lib/coach";
 import { fetchResearchSources } from "../../../lib/research";
 import { streamText } from "../../../lib/gemini";
+import { makeId } from "../../../lib/utils";
 
 export async function POST(request: Request) {
+  const traceId = makeId("trace");
   const body = await request.json().catch(() => null);
   const parsed = coachSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 }
     );
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
   const pack = await getPack(parsed.data.packId);
   if (!pack) {
-    return NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    const response = NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
   const { system, prompt } = buildCoachPrompt(
@@ -47,7 +53,8 @@ export async function POST(request: Request) {
     system,
     config: {
       temperature: 0.5,
-      maxOutputTokens: 800
+      maxOutputTokens: 800,
+      retry: { maxRetries: 1, baseDelayMs: 500 }
     }
   });
 
@@ -64,9 +71,11 @@ export async function POST(request: Request) {
     }
   });
 
-  return new Response(stream, {
+  const response = new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8"
     }
   });
+  response.headers.set("x-request-id", traceId);
+  return response;
 }

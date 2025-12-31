@@ -109,7 +109,8 @@ Return JSON matching the schema.`;
     config: {
       responseSchema: REPORT_SCHEMA,
       maxOutputTokens: 1200,
-      temperature: 0.4
+      temperature: 0.4,
+      retry: { maxRetries: 2, baseDelayMs: 700 }
     }
   });
 

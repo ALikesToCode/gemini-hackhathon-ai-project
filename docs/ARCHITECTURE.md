@@ -17,11 +17,13 @@ VeriLearn is a single Next.js full-stack app hosted on Vercel. The UI, API route
 ## Key modules
 - `lib/verimap.ts`: playlist -> blueprint.
 - `lib/verinotes.ts`: transcript-grounded notes with citations and visuals.
+- `lib/storyboard.ts`: storyboard keyframes for visual evidence (sprite tiles).
 - `lib/veribank.ts`: structured question bank.
 - `lib/veriverify.ts`: verification and regeneration gates.
 - `lib/veriexam.ts`: mock exam assembly + grading.
 - `lib/veriexports.ts`: PDF/HTML/Anki exports.
 - `lib/verivault.ts` (via `app/api/vault`): PDF/TXT ingestion and storage.
+- `lib/vaultSearch.ts`: lightweight vault search for grounding snippets.
 - `lib/coach.ts`: prompts for coach/viva/assist modes.
 
 ## Storage
@@ -29,14 +31,15 @@ VeriLearn is a single Next.js full-stack app hosted on Vercel. The UI, API route
 - Local store (`data/store.json`) when KV is not configured.
 
 ## APIs
-- `POST /api/generate-pack`
+- `POST /api/generate-pack` (supports optional resume job id)
 - `GET /api/status/:jobId` + `GET /api/status/stream/:jobId`
 - `GET /api/packs`
 - `GET/DELETE /api/study-pack/:packId`
 - `POST /api/submit-answer`
 - `POST /api/remediation`
 - `GET /api/export/pdf|html|anki`
-- `POST /api/coach`
+- `POST /api/coach` (stateless stream)
+- `POST /api/coach/session` + `POST /api/coach/session/:id` (live sessions)
 - `POST /api/vault`
 
 ## Deployment

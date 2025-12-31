@@ -161,7 +161,8 @@ Return JSON matching the schema.`;
       config: {
         responseSchema: QUESTION_SCHEMA,
         maxOutputTokens: 1800,
-        temperature: 0.45
+        temperature: 0.45,
+        retry: { maxRetries: 2, baseDelayMs: 700 }
       }
     });
 
@@ -238,7 +239,8 @@ Return JSON matching the schema.`;
     config: {
       responseSchema: SINGLE_QUESTION_SCHEMA,
       maxOutputTokens: 1200,
-      temperature: 0.45
+      temperature: 0.45,
+      retry: { maxRetries: 2, baseDelayMs: 700 }
     }
   });
 

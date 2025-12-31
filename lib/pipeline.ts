@@ -13,7 +13,18 @@ import {
 } from "./youtube";
 import { createMasteryRecord } from "./mastery";
 import { delay, makeId } from "./utils";
-import { getJob, getTranscript, getVaultDoc, setJob, setPack, setTranscript, updateJob } from "./store";
+import {
+  deleteDraft,
+  getDraft,
+  getJob,
+  getTranscript,
+  getVaultDoc,
+  setDraft,
+  setJob,
+  setPack,
+  setTranscript,
+  updateJob
+} from "./store";
 import { buildResearchReport, fetchResearchSources, searchResearchSources } from "./research";
 import { buildVisualReferences } from "./storyboard";
 import { buildVaultContext } from "./vaultSearch";
@@ -34,6 +45,7 @@ export type PipelineInputs = {
   researchApiKey?: string;
   researchQuery?: string;
   options: GeneratePackOptions;
+  resumeJobId?: string;
 };
 
 export function normalizeOptions(options?: Partial<GeneratePackOptions>): GeneratePackOptions {
@@ -49,7 +61,7 @@ export function normalizeOptions(options?: Partial<GeneratePackOptions>): Genera
   };
 }
 
-export async function createJob(): Promise<JobStatus> {
+export async function createJob(traceId?: string): Promise<JobStatus> {
   const now = new Date().toISOString();
   const job: JobStatus = {
     id: makeId("job"),
@@ -59,6 +71,7 @@ export async function createJob(): Promise<JobStatus> {
     totalLectures: 0,
     completedLectures: 0,
     errors: [],
+    traceId,
     createdAt: now,
     updatedAt: now
   };
@@ -142,6 +155,15 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
       inputs.youtubeApiKey
     );
 
+    let resumeNotesMap = new Map<string, Pack["notes"][number]>();
+    if (inputs.resumeJobId) {
+      const draft = await getDraft(inputs.resumeJobId);
+      if (draft && draft.input === inputs.input) {
+        resumeNotesMap = new Map(draft.notes.map((note) => [note.lectureId, note]));
+      }
+      await deleteDraft(inputs.resumeJobId);
+    }
+
     await updateJob(jobId, {
       totalLectures: lectures.length,
       completedLectures: 0,
@@ -158,23 +180,29 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
         progress: 0.15
       });
 
-      let sources = [] as Awaited<ReturnType<typeof fetchResearchSources>>;
-      if (inputs.researchSources?.length) {
-        sources = await fetchResearchSources(inputs.researchSources);
-      } else if (inputs.researchApiKey) {
-        const query = inputs.researchQuery ?? `${title} syllabus past paper topics`;
-        const searchResults = await searchResearchSources(query, inputs.researchApiKey, 5);
-        const urls = searchResults.map((result) => result.url);
-        sources = await fetchResearchSources(urls, searchResults);
-      }
+      try {
+        let sources = [] as Awaited<ReturnType<typeof fetchResearchSources>>;
+        if (inputs.researchSources?.length) {
+          sources = await fetchResearchSources(inputs.researchSources);
+        } else if (inputs.researchApiKey) {
+          const query = inputs.researchQuery ?? `${title} syllabus past paper topics`;
+          const searchResults = await searchResearchSources(query, inputs.researchApiKey, 5);
+          const urls = searchResults.map((result) => result.url);
+          sources = await fetchResearchSources(urls, searchResults);
+        }
 
-      if (sources.length) {
-        researchReport = await buildResearchReport(
-          title,
-          sources,
-          inputs.geminiApiKey,
-          inputs.models.pro
-        );
+        if (sources.length) {
+          researchReport = await buildResearchReport(
+            title,
+            sources,
+            inputs.geminiApiKey,
+            inputs.models.pro
+          );
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Research failed";
+        jobErrors = [...jobErrors, `Research error: ${message}`];
+        await updateJob(jobId, { errors: jobErrors });
       }
     }
 
@@ -201,6 +229,22 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
     for (let index = 0; index < lectures.length; index += 1) {
       const lecture = lectures[index];
       try {
+        const cachedNote = resumeNotesMap.get(lecture.id);
+        if (cachedNote) {
+          notes.push(cachedNote);
+          await updateJob(jobId, {
+            completedLectures: index + 1,
+            progress: 0.2 + ((index + 1) / lectures.length) * 0.4
+          });
+          await setDraft({
+            jobId,
+            input: inputs.input,
+            notes,
+            updatedAt: new Date().toISOString()
+          });
+          continue;
+        }
+
         await updateJob(jobId, {
           currentLecture: lecture.title,
           step: `Transcribing ${lecture.title}`
@@ -242,7 +286,12 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
           lectureContext
         );
 
-        const visuals = await buildVisualReferences(lecture, verified.citations);
+        let visuals = [] as Pack["notes"][number]["visuals"];
+        try {
+          visuals = await buildVisualReferences(lecture, verified.citations);
+        } catch {
+          visuals = [];
+        }
         notes.push({ ...verified, visuals });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
@@ -268,6 +317,12 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
       await updateJob(jobId, {
         completedLectures: index + 1,
         progress: 0.2 + ((index + 1) / lectures.length) * 0.4
+      });
+      await setDraft({
+        jobId,
+        input: inputs.input,
+        notes,
+        updatedAt: new Date().toISOString()
       });
       await delay(inputs.options.simulateDelayMs);
     }
@@ -408,6 +463,7 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
     };
 
     await setPack(pack);
+    await deleteDraft(jobId);
     await updateJob(jobId, {
       status: "completed",
       step: "Ready",

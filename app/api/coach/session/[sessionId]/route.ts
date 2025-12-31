@@ -9,34 +9,46 @@ import {
   getPack,
   updateCoachSession
 } from "../../../../../lib/store";
+import { makeId } from "../../../../../lib/utils";
 
 export async function GET(
   _request: Request,
   { params }: { params: { sessionId: string } }
 ) {
+  const traceId = makeId("trace");
   const session = await getCoachSession(params.sessionId);
   if (!session) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
-  return NextResponse.json(session);
+  const response = NextResponse.json(session);
+  response.headers.set("x-request-id", traceId);
+  return response;
 }
 
 export async function DELETE(
   _request: Request,
   { params }: { params: { sessionId: string } }
 ) {
+  const traceId = makeId("trace");
   const removed = await deleteCoachSession(params.sessionId);
   if (!removed) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.headers.set("x-request-id", traceId);
+  return response;
 }
 
 export async function POST(
   request: Request,
   { params }: { params: { sessionId: string } }
 ) {
+  const traceId = makeId("trace");
   const body = await request.json().catch(() => null);
   const parsed = coachMessageSchema.safeParse({
     ...body,
@@ -44,20 +56,26 @@ export async function POST(
   });
 
   if (!parsed.success) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 }
     );
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
   const session = await getCoachSession(parsed.data.sessionId);
   if (!session) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
   const pack = await getPack(session.packId);
   if (!pack) {
-    return NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    const response = NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    response.headers.set("x-request-id", traceId);
+    return response;
   }
 
   const history = session.history ?? [];
@@ -87,7 +105,8 @@ export async function POST(
     system,
     config: {
       temperature: 0.5,
-      maxOutputTokens: 800
+      maxOutputTokens: 800,
+      retry: { maxRetries: 1, baseDelayMs: 500 }
     }
   });
 
@@ -100,8 +119,10 @@ export async function POST(
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
-          assistantText += value;
-          controller.enqueue(encoder.encode(value));
+          if (value) {
+            assistantText += value;
+            controller.enqueue(encoder.encode(value));
+          }
         }
       } finally {
         await updateCoachSession(session.id, {
@@ -116,9 +137,11 @@ export async function POST(
     }
   });
 
-  return new Response(stream, {
+  const response = new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8"
     }
   });
+  response.headers.set("x-request-id", traceId);
+  return response;
 }

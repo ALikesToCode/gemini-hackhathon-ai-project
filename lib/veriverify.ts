@@ -38,7 +38,8 @@ Return JSON matching the schema.`;
     config: {
       responseSchema: VERIFY_SCHEMA,
       temperature: 0.2,
-      maxOutputTokens: 600
+      maxOutputTokens: 600,
+      retry: { maxRetries: 2, baseDelayMs: 500 }
     }
   });
 
@@ -98,7 +99,8 @@ Return JSON matching the schema.`;
     config: {
       responseSchema: VERIFY_SCHEMA,
       temperature: 0.2,
-      maxOutputTokens: 400
+      maxOutputTokens: 400,
+      retry: { maxRetries: 2, baseDelayMs: 500 }
     }
   });
 

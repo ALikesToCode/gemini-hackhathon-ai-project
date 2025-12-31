@@ -90,7 +90,8 @@ Return JSON matching the schema.`;
     config: {
       responseSchema: NOTE_SCHEMA,
       maxOutputTokens: 1400,
-      temperature: 0.4
+      temperature: 0.4,
+      retry: { maxRetries: 2, baseDelayMs: 600 }
     }
   });
 

@@ -3,6 +3,7 @@ import { remediationSchema } from "../../../lib/schemas";
 import { generateText } from "../../../lib/gemini";
 import { getPack } from "../../../lib/store";
 import { RemediationItem } from "../../../lib/types";
+import { makeId } from "../../../lib/utils";
 
 function matchTopicId(titleOrId: string, topics: { id: string; title: string }[]) {
   const normalized = titleOrId.trim().toLowerCase();
@@ -13,11 +14,18 @@ function matchTopicId(titleOrId: string, topics: { id: string; title: string }[]
 }
 
 export async function POST(request: Request) {
+  const traceId = makeId("trace");
+  const json = (body: unknown, init?: ResponseInit) => {
+    const response = NextResponse.json(body, init);
+    response.headers.set("x-request-id", traceId);
+    return response;
+  };
+
   const body = await request.json().catch(() => null);
   const parsed = remediationSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 }
     );
@@ -25,7 +33,7 @@ export async function POST(request: Request) {
 
   const pack = await getPack(parsed.data.packId);
   if (!pack) {
-    return NextResponse.json({ error: "Pack not found" }, { status: 404 });
+    return json({ error: "Pack not found" }, { status: 404 });
   }
 
   const maxTopics = parsed.data.maxTopics ?? 5;
@@ -108,7 +116,11 @@ Keep it under 90 words.`;
           apiKey: parsed.data.geminiApiKey,
           model: parsed.data.model,
           prompt,
-          config: { temperature: 0.4, maxOutputTokens: 200 }
+          config: {
+            temperature: 0.4,
+            maxOutputTokens: 200,
+            retry: { maxRetries: 2, baseDelayMs: 500 }
+          }
         });
         if (response.trim()) {
           advice = response.trim();
@@ -127,5 +139,5 @@ Keep it under 90 words.`;
     });
   }
 
-  return NextResponse.json({ packId: pack.id, remediation });
+  return json({ packId: pack.id, remediation });
 }

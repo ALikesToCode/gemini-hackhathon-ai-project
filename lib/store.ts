@@ -6,6 +6,7 @@ import {
   JobStatus,
   Pack,
   PackSummary,
+  PackDraft,
   StoryboardSpec,
   TranscriptSegment,
   VaultDoc
@@ -23,6 +24,7 @@ type LocalStoreShape = {
   transcripts: Record<string, TranscriptSegment[]>;
   storyboards: Record<string, StoryboardSpec>;
   coachSessions: Record<string, CoachSession>;
+  drafts: Record<string, PackDraft>;
 };
 
 async function readLocalStore(): Promise<LocalStoreShape> {
@@ -35,7 +37,8 @@ async function readLocalStore(): Promise<LocalStoreShape> {
       vault: parsed.vault ?? {},
       transcripts: parsed.transcripts ?? {},
       storyboards: parsed.storyboards ?? {},
-      coachSessions: parsed.coachSessions ?? {}
+      coachSessions: parsed.coachSessions ?? {},
+      drafts: parsed.drafts ?? {}
     };
   } catch {
     return {
@@ -44,7 +47,8 @@ async function readLocalStore(): Promise<LocalStoreShape> {
       vault: {},
       transcripts: {},
       storyboards: {},
-      coachSessions: {}
+      coachSessions: {},
+      drafts: {}
     };
   }
 }
@@ -169,6 +173,36 @@ export async function setTranscript(videoId: string, segments: TranscriptSegment
   const store = await readLocalStore();
   store.transcripts[videoId] = segments;
   await writeLocalStore(store);
+}
+
+export async function getDraft(jobId: string) {
+  if (USE_KV) {
+    return (await kv.get<PackDraft>(`draft:${jobId}`)) ?? null;
+  }
+  const store = await readLocalStore();
+  return store.drafts[jobId] ?? null;
+}
+
+export async function setDraft(draft: PackDraft) {
+  if (USE_KV) {
+    await kv.set(`draft:${draft.jobId}`, draft);
+    return;
+  }
+  const store = await readLocalStore();
+  store.drafts[draft.jobId] = draft;
+  await writeLocalStore(store);
+}
+
+export async function deleteDraft(jobId: string) {
+  if (USE_KV) {
+    await kv.del(`draft:${jobId}`);
+    return true;
+  }
+  const store = await readLocalStore();
+  if (!store.drafts[jobId]) return false;
+  delete store.drafts[jobId];
+  await writeLocalStore(store);
+  return true;
 }
 
 export async function getStoryboard(videoId: string) {

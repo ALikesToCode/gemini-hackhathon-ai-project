@@ -4,6 +4,7 @@
 - Generate a pack from a small playlist.
 - Confirm progress updates via polling or SSE.
 - Verify notes show citations and visuals.
+- Confirm visuals show storyboard tiles when available.
 - Ensure question bank includes citations and verification notes when needed.
 
 ## Exam + Remediation
@@ -19,3 +20,4 @@
 ## Vault + Research
 - Upload a PDF/TXT and confirm it appears as indexed.
 - Enable research sources and verify report renders.
+- Enable Deep Research with Serper and confirm sources appear.

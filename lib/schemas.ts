@@ -16,6 +16,7 @@ export const generatePackSchema = z.object({
   researchSources: z.array(z.string().url()).optional(),
   researchApiKey: z.string().optional(),
   researchQuery: z.string().optional(),
+  resumeJobId: z.string().optional(),
   options: z
     .object({
       examSize: z.number().int().min(3).max(50).default(10),

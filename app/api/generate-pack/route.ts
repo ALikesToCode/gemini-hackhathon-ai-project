@@ -6,6 +6,7 @@ import {
   normalizeOptions,
   runPackPipeline
 } from "../../../lib/pipeline";
+import { makeId } from "../../../lib/utils";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const job = await createJob();
+  const traceId = makeId("trace");
+  const job = await createJob(traceId);
   const options = normalizeOptions(parsed.data.options ?? {});
   const models = {
     pro: parsed.data.models?.pro ?? "gemini-3-pro",
@@ -36,7 +38,8 @@ export async function POST(request: Request) {
     researchSources: parsed.data.researchSources,
     researchApiKey: parsed.data.researchApiKey,
     researchQuery: parsed.data.researchQuery,
-    options
+    options,
+    resumeJobId: parsed.data.resumeJobId
   });
 
   if (typeof waitUntil === "function") {
@@ -45,5 +48,7 @@ export async function POST(request: Request) {
     void task;
   }
 
-  return NextResponse.json({ jobId: job.id });
+  const response = NextResponse.json({ jobId: job.id, traceId });
+  response.headers.set("x-request-id", traceId);
+  return response;
 }

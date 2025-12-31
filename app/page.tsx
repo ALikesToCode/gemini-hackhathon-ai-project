@@ -44,6 +44,7 @@ export default function Home() {
   const [includeCoach, setIncludeCoach] = useState(true);
   const [includeAssist, setIncludeAssist] = useState(false);
   const [useCodeExecution, setUseCodeExecution] = useState(false);
+  const [resumeJobId, setResumeJobId] = useState("");
 
   const [youtubeApiKey, setYoutubeApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -296,6 +297,7 @@ export default function Home() {
           .filter(Boolean),
         researchApiKey: researchApiKey || undefined,
         researchQuery: researchQuery || undefined,
+        resumeJobId: resumeJobId || undefined,
         options: {
           examSize,
           language,
@@ -739,6 +741,15 @@ export default function Home() {
                   placeholder="e.g. course name syllabus past papers"
                 />
               </div>
+              <div className="form-row">
+                <label htmlFor="resume-job">Resume job id (optional)</label>
+                <input
+                  id="resume-job"
+                  value={resumeJobId}
+                  onChange={(event) => setResumeJobId(event.target.value)}
+                  placeholder="job_..."
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -750,6 +761,8 @@ export default function Home() {
               <div className="tag">{job?.status ?? "idle"}</div>
               <p>{job ? job.step : "Awaiting a playlist."}</p>
               {job?.currentLecture ? <p>Now: {job.currentLecture}</p> : null}
+              {job?.id ? <p className="muted">Job ID: {job.id}</p> : null}
+              {job?.traceId ? <p className="muted">Trace ID: {job.traceId}</p> : null}
             </div>
             <div>
               <div className="progress">

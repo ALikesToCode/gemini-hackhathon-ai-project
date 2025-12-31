@@ -14,7 +14,7 @@ Open `http://localhost:3000` and paste a playlist or a list of video URLs. Provi
 ## Features
 
 - Playlist ingestion via YouTube Data API
-- Transcript grounding from YouTube timed text
+- Transcript grounding from YouTube timed text + storyboard keyframes
 - Gemini Pro for notes + questions
 - Gemini Flash for verification gates
 - Mock exam with grading + remediation links
@@ -23,7 +23,9 @@ Open `http://localhost:3000` and paste a playlist or a list of video URLs. Provi
 - Exports: PDF + HTML + Anki CSV/TSV
 - Shareable pack pages
 - Saved pack list + delete
-- Coach / Viva / Assist chat mode (streamed)
+- Coach / Viva / Assist chat mode (streamed + live sessions)
+- Deep research mode via Serper (optional API key)
+- Resume generation via job id
 
 ## Deployment (Vercel)
 
@@ -44,4 +46,5 @@ If KV is not configured, the app falls back to a local JSON file store in `data/
 - Transcripts are fetched from YouTube timed text endpoints; some videos may not expose captions.
 - For best results, keep playlists under 20-30 lectures per run to avoid long generation times.
 - Models are configurable in the UI (defaults: `gemini-3-pro`, `gemini-3-flash`).
+- For Deep Research search, supply a Serper API key in the UI (optional).
 - Upload PDFs/TXT in the Vault section to ground generation against syllabus or slides.
