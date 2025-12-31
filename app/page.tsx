@@ -6,9 +6,11 @@ import type {
   JobStatus,
   Pack,
   PackSummary,
+  PracticePlan,
   Question,
   RemediationItem
 } from "../lib/types";
+import { buildStudySchedule } from "../lib/schedule";
 
 const DEFAULT_INPUT = "https://youtube.com/playlist?list=PL123_VERILEARN";
 const DEFAULT_PRO_MODEL = "gemini-3-pro";
@@ -67,6 +69,11 @@ export default function Home() {
   const [remediation, setRemediation] = useState<RemediationItem[] | null>(null);
   const [remediationLoading, setRemediationLoading] = useState(false);
   const [remediationError, setRemediationError] = useState<string | null>(null);
+  const [practicePlan, setPracticePlan] = useState<PracticePlan | null>(null);
+  const [practiceAnswers, setPracticeAnswers] = useState<Record<string, string>>({});
+  const [practiceResults, setPracticeResults] = useState<Record<string, GradeResult>>({});
+  const [practiceLoading, setPracticeLoading] = useState(false);
+  const [practiceError, setPracticeError] = useState<string | null>(null);
 
   const [coachMode, setCoachMode] = useState<CoachMode>("coach");
   const [coachInput, setCoachInput] = useState("");
@@ -243,6 +250,10 @@ export default function Home() {
   useEffect(() => {
     setRemediation(null);
     setRemediationError(null);
+    setPracticePlan(null);
+    setPracticeResults({});
+    setPracticeAnswers({});
+    setPracticeError(null);
   }, [pack?.id]);
 
   useEffect(() => {
@@ -280,7 +291,9 @@ export default function Home() {
           mode: coachMode,
           geminiApiKey,
           model: proModel,
-          useLive: useLiveApi
+          useLive: useLiveApi,
+          researchApiKey: researchApiKey || undefined,
+          researchQuery: researchQuery || undefined
         })
       );
     };
@@ -325,7 +338,7 @@ export default function Home() {
     return () => {
       ws.close();
     };
-  }, [useWebSocket, pack?.id, coachMode, geminiApiKey, proModel, useLiveApi]);
+  }, [useWebSocket, pack?.id, coachMode, geminiApiKey, proModel, useLiveApi, researchApiKey, researchQuery]);
 
   const handleGenerate = async () => {
     if (!youtubeApiKey || !geminiApiKey) {
@@ -342,6 +355,10 @@ export default function Home() {
     setExamTimeLeft(null);
     setRemediation(null);
     setRemediationError(null);
+    setPracticePlan(null);
+    setPracticeResults({});
+    setPracticeAnswers({});
+    setPracticeError(null);
 
     let vaultDocIds: string[] = vaultDocs.map((doc) => doc.id);
     if (vaultFiles.length) {
@@ -435,6 +452,58 @@ export default function Home() {
     };
   }, [examResults]);
 
+  const topicAccuracy = useMemo(() => {
+    if (!pack) return [];
+    const questionMap = new Map(pack.questions.map((question) => [question.id, question]));
+    const totals = new Map<string, { correct: number; total: number }>();
+
+    Object.values(examResults).forEach((result) => {
+      const question = questionMap.get(result.questionId);
+      if (!question) return;
+      const topic = pack.blueprint.topics.find((candidate) =>
+        question.tags.some(
+          (tag) =>
+            tag.toLowerCase() === candidate.title.toLowerCase() ||
+            tag.toLowerCase() === candidate.id.toLowerCase()
+        )
+      );
+      const topicId = topic?.id ?? "general";
+      const current = totals.get(topicId) ?? { correct: 0, total: 0 };
+      totals.set(topicId, {
+        correct: current.correct + (result.correct ? 1 : 0),
+        total: current.total + 1
+      });
+    });
+
+    return pack.blueprint.topics.map((topic) => {
+      const record = totals.get(topic.id) ?? { correct: 0, total: 0 };
+      return {
+        id: topic.id,
+        title: topic.title,
+        correct: record.correct,
+        total: record.total
+      };
+    });
+  }, [pack, examResults]);
+
+  const studySchedule = useMemo(() => {
+    if (!pack || !examDate) return [];
+    return buildStudySchedule(pack.blueprint, examDate);
+  }, [pack, examDate]);
+
+  const reviewQueue = useMemo(() => {
+    if (!pack) return [];
+    return pack.blueprint.topics
+      .map((topic) => ({
+        id: topic.id,
+        title: topic.title,
+        score: pack.mastery[topic.id]?.score ?? 0,
+        nextReviewAt: pack.mastery[topic.id]?.nextReviewAt ?? new Date().toISOString()
+      }))
+      .sort((a, b) => new Date(a.nextReviewAt).getTime() - new Date(b.nextReviewAt).getTime())
+      .slice(0, 6);
+  }, [pack]);
+
   const formatTime = (totalSeconds: number | null) => {
     if (totalSeconds === null) return "";
     const minutes = Math.floor(totalSeconds / 60);
@@ -464,6 +533,63 @@ export default function Home() {
 
     const data = (await response.json()) as GradeResult;
     setExamResults((prev) => ({ ...prev, [question.id]: data }));
+    if (data.mastery) {
+      setPack((prev) =>
+        prev
+          ? {
+              ...prev,
+              mastery: {
+                ...prev.mastery,
+                [data.mastery.topicId]: data.mastery
+              }
+            }
+          : prev
+      );
+    }
+  };
+
+  const handlePracticeLoad = async () => {
+    if (!pack) return;
+    setPracticeLoading(true);
+    setPracticeError(null);
+    try {
+      const response = await fetch(`/api/practice?packId=${pack.id}&limit=5`);
+      if (!response.ok) {
+        throw new Error("Failed to build practice set");
+      }
+      const data = (await response.json()) as PracticePlan;
+      setPracticePlan(data);
+      setPracticeAnswers({});
+      setPracticeResults({});
+    } catch (err) {
+      setPracticeError(err instanceof Error ? err.message : "Practice request failed");
+    } finally {
+      setPracticeLoading(false);
+    }
+  };
+
+  const handlePracticeCheck = async (question: Question) => {
+    const answer = practiceAnswers[question.id];
+    if (!answer || !pack) {
+      return;
+    }
+
+    const response = await fetch("/api/submit-answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        packId: pack.id,
+        questionId: question.id,
+        answer
+      })
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const data = (await response.json()) as GradeResult;
+    setPracticeResults((prev) => ({ ...prev, [question.id]: data }));
     if (data.mastery) {
       setPack((prev) =>
         prev
@@ -527,7 +653,12 @@ export default function Home() {
       const sessionResponse = await fetch("/api/coach/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId: pack.id, mode: coachMode })
+        body: JSON.stringify({
+          packId: pack.id,
+          mode: coachMode,
+          researchApiKey: researchApiKey || undefined,
+          researchQuery: researchQuery || undefined
+        })
       });
       if (!sessionResponse.ok) {
         setCoachBusy(false);
@@ -1119,6 +1250,106 @@ export default function Home() {
             </div>
 
             <div className="card">
+              <div className="section-title">Adaptive practice</div>
+              <p className="kicker">Spaced repetition based on mastery scores.</p>
+              <div className="pack-actions">
+                <button
+                  className="button secondary"
+                  onClick={handlePracticeLoad}
+                  disabled={practiceLoading}
+                >
+                  {practiceLoading ? "Building practice set..." : "Generate practice set"}
+                </button>
+              </div>
+              {practiceError ? <p className="feedback bad">{practiceError}</p> : null}
+              {practicePlan?.dueTopics?.length ? (
+                <div className="pill-list">
+                  {practicePlan.dueTopics.map((topic) => (
+                    <span key={topic.id} className="pill">
+                      {topic.title} {topic.due ? "• due" : ""} ({Math.round(topic.score * 100)}%)
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">No practice set loaded yet.</p>
+              )}
+              {practicePlan?.questions?.length ? (
+                <div className="list">
+                  {practicePlan.questions.map((question) => {
+                    const result = practiceResults[question.id];
+                    return (
+                      <div key={question.id} className="question">
+                        <strong>{question.stem}</strong>
+                        {question.options ? (
+                          <div className="options">
+                            {question.options.map((option) => (
+                              <label key={option.id} className="option">
+                                <input
+                                  type="radio"
+                                  name={`practice-${question.id}`}
+                                  value={option.id}
+                                  checked={practiceAnswers[question.id] === option.id}
+                                  onChange={(event) =>
+                                    setPracticeAnswers((prev) => ({
+                                      ...prev,
+                                      [question.id]: event.target.value
+                                    }))
+                                  }
+                                />
+                                <span>
+                                  {option.id}. {option.text}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="Type your answer"
+                            value={practiceAnswers[question.id] ?? ""}
+                            onChange={(event) =>
+                              setPracticeAnswers((prev) => ({
+                                ...prev,
+                                [question.id]: event.target.value
+                              }))
+                            }
+                          />
+                        )}
+                        <button
+                          className="button secondary"
+                          onClick={() => handlePracticeCheck(question)}
+                        >
+                          Check answer
+                        </button>
+                        {result ? (
+                          <div className={`feedback ${result.correct ? "" : "bad"}`}>
+                            {result.correct
+                              ? "Correct."
+                              : `Not quite. Correct answer: ${result.correctAnswer}`}
+                            <div>{result.explanation}</div>
+                            <div className="pill-list">
+                              {result.citations.map((citation) => (
+                                <a
+                                  key={citation.label}
+                                  className="pill"
+                                  href={citation.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {citation.timestamp}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="card">
               <div className="section-title">Mock exam</div>
               <p className="kicker">
                 {pack.exam.totalTimeMinutes} min - {examQuestions.length} questions
@@ -1244,6 +1475,65 @@ export default function Home() {
                 </div>
               ) : (
                 <p className="muted">Generate a plan after answering questions.</p>
+              )}
+            </div>
+
+            <div className="card">
+              <div className="section-title">Analytics + schedule</div>
+              <p className="kicker">Topic accuracy and upcoming review plan.</p>
+              {topicAccuracy.some((item) => item.total > 0) ? (
+                <div className="list">
+                  {topicAccuracy
+                    .filter((item) => item.total > 0)
+                    .map((item) => (
+                      <div key={item.id} className="note-block">
+                        <strong>{item.title}</strong>
+                        <div className="pill-list">
+                          <span className="pill">
+                            Accuracy {Math.round((item.correct / item.total) * 100)}%
+                          </span>
+                          <span className="pill">
+                            {item.correct}/{item.total} correct
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="muted">Answer some questions to see analytics.</p>
+              )}
+              {reviewQueue.length ? (
+                <div className="list">
+                  {reviewQueue.map((topic) => (
+                    <div key={topic.id} className="note-block">
+                      <strong>{topic.title}</strong>
+                      <div className="pill-list">
+                        <span className="pill">
+                          Next review {new Date(topic.nextReviewAt).toLocaleDateString()}
+                        </span>
+                        <span className="pill">Mastery {Math.round(topic.score * 100)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {studySchedule.length ? (
+                <div className="list">
+                  {studySchedule.map((day) => (
+                    <div key={day.date} className="note-block">
+                      <strong>{day.date}</strong>
+                      <div className="pill-list">
+                        {day.topics.map((topic) => (
+                          <span key={topic.id} className="pill">
+                            {topic.title}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">Add an exam date to generate a study schedule.</p>
               )}
             </div>
 

@@ -1,4 +1,4 @@
-import { buildBlueprint } from "./verimap";
+import { buildBlueprint, buildResearchBlueprint } from "./verimap";
 import { generateNotes } from "./verinotes";
 import { generateQuestionBank, regenerateQuestion } from "./veribank";
 import { verifyNotes, verifyQuestion } from "./veriverify";
@@ -179,7 +179,7 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
       progress: 0.1
     });
 
-    const blueprint = buildBlueprint(title, lectures);
+    let blueprint = buildBlueprint(title, lectures);
     let researchReport;
 
     const vaultDocs = inputs.vaultDocIds?.length
@@ -244,6 +244,16 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
             inputs.geminiApiKey,
             inputs.models.pro
           );
+          const researchBlueprint = await buildResearchBlueprint(
+            title,
+            lectures,
+            researchReport,
+            inputs.geminiApiKey,
+            inputs.models.pro
+          );
+          if (researchBlueprint) {
+            blueprint = researchBlueprint;
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Research failed";

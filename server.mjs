@@ -33,6 +33,8 @@ app.prepare().then(() => {
       model: "gemini-3-pro",
       history: [],
       useLive: false,
+      researchApiKey: "",
+      researchQuery: "",
       liveSession: null,
       liveBuffer: ""
     };
@@ -46,6 +48,8 @@ app.prepare().then(() => {
           session.geminiApiKey = payload.geminiApiKey ?? "";
           session.model = payload.model ?? "gemini-3-pro";
           session.useLive = Boolean(payload.useLive);
+          session.researchApiKey = payload.researchApiKey ?? "";
+          session.researchQuery = payload.researchQuery ?? "";
 
           if (session.useLive && session.geminiApiKey) {
             const ai = new GoogleGenAI({ apiKey: session.geminiApiKey });
@@ -111,7 +115,9 @@ app.prepare().then(() => {
             history: session.history,
             mode: session.mode,
             geminiApiKey: session.geminiApiKey,
-            model: session.model
+            model: session.model,
+            researchApiKey: session.researchApiKey || undefined,
+            researchQuery: session.researchQuery || undefined
           })
         });
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { coachMessageSchema } from "../../../../../lib/schemas";
 import { buildCoachPrompt } from "../../../../../lib/coach";
-import { fetchResearchSources } from "../../../../../lib/research";
+import { fetchResearchSources, searchResearchSources } from "../../../../../lib/research";
 import { runAssistTools } from "../../../../../lib/assistTools";
 import { streamText } from "../../../../../lib/gemini";
 import {
@@ -98,6 +98,31 @@ export async function POST(
         .map((source) => `URL: ${source.url}\nExcerpt: ${source.excerpt}`)
         .join("\n\n");
       enrichedPrompt = `${enrichedPrompt}\n\nAdditional resources:\n${appendix}`;
+    }
+    if (session.researchApiKey) {
+      const rawQuery = session.researchQuery ?? parsed.data.message;
+      const query = rawQuery.replace(/https?:\/\/[^\s]+/g, "").trim().slice(0, 160);
+      if (query.length > 3) {
+        try {
+          const searchResults = await searchResearchSources(
+            query,
+            session.researchApiKey,
+            3
+          );
+          const searchSources = await fetchResearchSources(
+            searchResults.map((result) => result.url),
+            searchResults
+          );
+          const searchAppendix = searchSources
+            .map((source) => `Search: ${source.title}\nURL: ${source.url}\nExcerpt: ${source.excerpt}`)
+            .join("\n\n");
+          if (searchAppendix) {
+            enrichedPrompt = `${enrichedPrompt}\n\nSearch results:\n${searchAppendix}`;
+          }
+        } catch {
+          // ignore search errors
+        }
+      }
     }
     if (toolContext) {
       enrichedPrompt = `${enrichedPrompt}\n\nAssist tool results:\n${toolContext}`;

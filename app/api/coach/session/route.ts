@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     packId: pack.id,
     mode: parsed.data.mode ?? "coach",
     history: [],
+    researchApiKey: parsed.data.researchApiKey,
+    researchQuery: parsed.data.researchQuery,
     createdAt: now,
     updatedAt: now
   };

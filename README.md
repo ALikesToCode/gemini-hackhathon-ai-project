@@ -19,7 +19,7 @@ Open `http://localhost:3000` and paste a playlist or a list of video URLs. Provi
 - Gemini Flash for verification gates
 - Mock exam with grading + remediation links
 - Remediation plans grouped by weak topics
-- Mastery tracking with spaced repetition cadence
+- Mastery tracking with spaced repetition cadence + adaptive practice sets
 - Exports: PDF + HTML + Anki CSV/TSV
 - Shareable pack pages
 - Saved pack list + delete
@@ -28,6 +28,7 @@ Open `http://localhost:3000` and paste a playlist or a list of video URLs. Provi
 - Resume generation via job id
 - File Search store grounding (vault upload)
 - Interactions API support for long-running generation
+- Study schedule generated from exam date
 
 ## Deployment (Vercel)
 

@@ -225,6 +225,8 @@ export type CoachSession = {
   packId: string;
   mode: "coach" | "viva" | "assist";
   history: { role: "user" | "assistant"; content: string }[];
+  researchApiKey?: string;
+  researchQuery?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -247,4 +249,16 @@ export type RemediationItem = {
 export type RemediationResponse = {
   packId: string;
   remediation: RemediationItem[];
+};
+
+export type PracticePlan = {
+  packId: string;
+  dueTopics: Array<{
+    id: string;
+    title: string;
+    score: number;
+    nextReviewAt: string;
+    due: boolean;
+  }>;
+  questions: Question[];
 };
