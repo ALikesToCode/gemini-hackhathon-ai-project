@@ -10,6 +10,7 @@ const nextConfig = {
   turbopack: {
     resolveAlias: {
       lightningcss: path.join(__dirname, "lib", "lightningcss-shim.cjs"),
+      "lightningcss/node": path.join(__dirname, "lib", "lightningcss-shim.cjs"),
     },
   },
 };

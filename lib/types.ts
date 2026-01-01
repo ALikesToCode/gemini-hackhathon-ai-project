@@ -113,6 +113,7 @@ export type Pack = {
   id: string;
   title: string;
   input: string;
+  examDate?: string;
   createdAt: string;
   blueprint: Blueprint;
   notes: NoteDocument[];

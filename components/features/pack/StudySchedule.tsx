@@ -1,12 +1,17 @@
 import React from "react";
-import { Card } from "../../ui/Card"; // Adjusted import path
+import { Card } from "../../ui/Card";
 import { Pack } from "../../../lib/types";
+import { buildStudySchedule } from "../../../lib/schedule";
 
 interface StudyScheduleProps {
     pack: Pack;
 }
 
 export const StudySchedule: React.FC<StudyScheduleProps> = ({ pack }) => {
+    const schedule = pack.examDate
+        ? buildStudySchedule(pack.blueprint, pack.examDate)
+        : [];
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Left Column: Topics List */}
@@ -25,25 +30,48 @@ export const StudySchedule: React.FC<StudyScheduleProps> = ({ pack }) => {
                 <Card className="bg-indigo-50 border-indigo-100">
                     <h3 className="text-xl font-serif text-indigo-900 mb-2">Study Strategy</h3>
                     <p className="text-indigo-800/80">
-                        Based on your exam date, we recommend focusing on the weakest topics first.
-                        Use the Coach tab to ask specific questions about these topics.
+                        Focus on lower mastery topics first, then cycle back based on your schedule.
+                        Use the Coach tab to drill weak areas before each session.
                     </p>
                 </Card>
 
-                <div>
-                    <h4 className="font-bold text-slate-800 mb-4">Detailed Notes</h4>
-                    <div className="space-y-4">
-                        {/* This would be populated with the actual notes content if available in a structured way per topic, 
-                         or we list the lecture notes. The pack type has 'notes' possibly? 
-                         Checking types... The Pack type usually has a list of generated notes/questions.
-                         Assuming pack.notes is a map or list. 
-                         For now, let's just show a placeholder or iterating loosely if we know the structure.
-                         The prompt isn't explicit about notes structure so I'll create a generic list view. */}
-
-                        <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                            Detailed timestamped notes view coming soon.
-                        </div>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-slate-800">Study Schedule</h4>
+                        {pack.examDate ? (
+                            <span className="text-xs text-slate-500">
+                                Exam date: {pack.examDate}
+                            </span>
+                        ) : null}
                     </div>
+
+                    {!pack.examDate ? (
+                        <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                            Add an exam date when generating the pack to see a day-by-day schedule.
+                        </div>
+                    ) : schedule.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                            Schedule unavailable. Try a future exam date.
+                        </div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {schedule.map((day) => (
+                                <Card key={day.date} padding="sm" className="flex flex-col gap-2">
+                                    <div className="text-sm font-semibold text-slate-700">{day.date}</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {day.topics.map((topic) => (
+                                            <span
+                                                key={topic.id}
+                                                className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
+                                            >
+                                                {topic.title}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -567,6 +567,7 @@ export async function runPackPipeline(jobId: string, inputs: PipelineInputs) {
       id: packId,
       title: `${title} Exam Pack`,
       input: inputs.input,
+      examDate: inputs.examDate,
       createdAt: new Date().toISOString(),
       blueprint,
       notes,

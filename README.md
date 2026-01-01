@@ -13,6 +13,12 @@ npm run dev
 
 Open `http://localhost:3000` and paste a playlist or a list of video URLs. Provide your YouTube + Gemini API keys in the UI.
 
+If you want Turbopack instead of webpack for local dev, run:
+
+```bash
+npm run dev:turbo
+```
+
 ## Features
 
 - Playlist ingestion via YouTube Data API

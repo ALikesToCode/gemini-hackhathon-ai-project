@@ -61,7 +61,7 @@ Strict JSON schemas for anything the UI consumes.
 
 ## Gemini Features Used (Judging Visibility)
 - Video understanding for chapters, concepts, and timestamps (via Files API or inline video).
-- Structured outputs (JSON schema) for questions and blueprints (generateContent uses `responseMimeType` + `responseJsonSchema`; Interactions uses `response_format`).
+- Structured outputs (JSON schema) for questions and blueprints (generateContent uses `responseMimeType` + `responseJsonSchema`; Interactions uses `response_format` + `response_mime_type`).
 - File Search tool (`file_search`) for grounding against slides, syllabus, PDFs.
 - Code Execution tool (`code_execution`) to verify numericals and rubric checks.
 - Interactions API for long-running, resumable jobs with progress (`previous_interaction_id`).

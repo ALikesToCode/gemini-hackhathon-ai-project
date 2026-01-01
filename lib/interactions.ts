@@ -57,6 +57,7 @@ export async function generateInteractionJson<T>(options: {
     model: options.model as any,
     input: options.prompt,
     response_format: options.schema,
+    response_mime_type: "application/json",
     generation_config: {
       temperature: options.config?.temperature,
       max_output_tokens: options.config?.maxOutputTokens ?? 2048
