@@ -15,10 +15,11 @@ import { buildComputerUseTools, buildFileSearchTools } from "../../../../../lib/
 
 export async function GET(
   _request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
-  const session = await getCoachSession(params.sessionId);
+  const { sessionId } = await params;
+  const session = await getCoachSession(sessionId);
   if (!session) {
     const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
     response.headers.set("x-request-id", traceId);
@@ -32,10 +33,11 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
-  const removed = await deleteCoachSession(params.sessionId);
+  const { sessionId } = await params;
+  const removed = await deleteCoachSession(sessionId);
   if (!removed) {
     const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
     response.headers.set("x-request-id", traceId);
@@ -48,13 +50,14 @@ export async function DELETE(
 
 export async function POST(
   request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
+  const { sessionId } = await params;
   const body = await request.json().catch(() => null);
   const parsed = coachMessageSchema.safeParse({
     ...body,
-    sessionId: params.sessionId
+    sessionId: sessionId
   });
 
   if (!parsed.success) {
@@ -90,7 +93,12 @@ export async function POST(
 
   let enrichedPrompt = prompt;
   if (session.mode === "assist") {
-    const toolContext = await runAssistTools(parsed.data.message);
+    const toolContext = await runAssistTools(parsed.data.message, {
+      browserUse: {
+        apiKey: session.browserUseApiKey,
+        enabled: session.useBrowserUse
+      }
+    });
     const urls = parsed.data.message.match(/https?:\/\/[^\s]+/g) ?? [];
     if (urls.length) {
       const sources = await fetchResearchSources(urls.slice(0, 2));

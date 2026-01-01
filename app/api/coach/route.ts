@@ -38,7 +38,12 @@ export async function POST(request: Request) {
 
   let enrichedPrompt = prompt;
   if (parsed.data.mode === "assist") {
-    const toolContext = await runAssistTools(parsed.data.message);
+    const toolContext = await runAssistTools(parsed.data.message, {
+      browserUse: {
+        apiKey: parsed.data.browserUseApiKey,
+        enabled: parsed.data.useBrowserUse
+      }
+    });
     const urls = parsed.data.message.match(/https?:\/\/[^\s]+/g) ?? [];
     if (urls.length) {
       const sources = await fetchResearchSources(urls.slice(0, 2));

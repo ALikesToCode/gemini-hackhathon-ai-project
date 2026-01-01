@@ -1,5 +1,7 @@
 # VeriLearn Exam Pack (Next.js)
 
+Repository: https://github.com/ALikesToCode/VeriLearn-Exam-Pack-gemini-hackhathon-ai-project
+
 A full-stack Next.js app that turns YouTube lecture playlists into evidence-backed exam prep: blueprint, notes with timestamps, question bank, mock exam, mastery tracking, exports (PDF/HTML/CSV/TSV), and a live coach.
 
 ## Quick start

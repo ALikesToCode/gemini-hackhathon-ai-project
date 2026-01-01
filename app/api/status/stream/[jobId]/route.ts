@@ -2,9 +2,10 @@ import { getJob } from "../../../../../lib/store";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const job = await getJob(params.jobId);
+  const { jobId } = await params;
+  const job = await getJob(jobId);
   if (!job) {
     return new Response(JSON.stringify({ error: "Job not found" }), {
       status: 404,
@@ -27,7 +28,7 @@ export async function GET(
       send(job);
 
       interval = setInterval(async () => {
-        const latest = await getJob(params.jobId);
+        const latest = await getJob(jobId);
         if (!latest) {
           send({ error: "Job not found" }, "error");
           if (interval) clearInterval(interval);

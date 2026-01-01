@@ -35,6 +35,8 @@ app.prepare().then(() => {
       useLive: false,
       researchApiKey: "",
       researchQuery: "",
+      browserUseApiKey: "",
+      useBrowserUse: false,
       liveSession: null,
       liveBuffer: ""
     };
@@ -50,6 +52,8 @@ app.prepare().then(() => {
           session.useLive = Boolean(payload.useLive);
           session.researchApiKey = payload.researchApiKey ?? "";
           session.researchQuery = payload.researchQuery ?? "";
+          session.browserUseApiKey = payload.browserUseApiKey ?? "";
+          session.useBrowserUse = Boolean(payload.useBrowserUse);
 
           if (session.useLive && session.geminiApiKey) {
             const ai = new GoogleGenAI({ apiKey: session.geminiApiKey });
@@ -117,7 +121,9 @@ app.prepare().then(() => {
             geminiApiKey: session.geminiApiKey,
             model: session.model,
             researchApiKey: session.researchApiKey || undefined,
-            researchQuery: session.researchQuery || undefined
+            researchQuery: session.researchQuery || undefined,
+            browserUseApiKey: session.browserUseApiKey || undefined,
+            useBrowserUse: session.useBrowserUse || undefined
           })
         });
 

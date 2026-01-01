@@ -54,14 +54,18 @@ export const coachSchema = z.object({
   geminiApiKey: z.string().min(10),
   model: z.string().min(3),
   researchApiKey: z.string().optional(),
-  researchQuery: z.string().optional()
+  researchQuery: z.string().optional(),
+  browserUseApiKey: z.string().optional(),
+  useBrowserUse: z.boolean().optional()
 });
 
 export const coachSessionSchema = z.object({
   packId: z.string().min(4),
   mode: z.enum(["coach", "viva", "assist"]).default("coach"),
   researchApiKey: z.string().optional(),
-  researchQuery: z.string().optional()
+  researchQuery: z.string().optional(),
+  browserUseApiKey: z.string().optional(),
+  useBrowserUse: z.boolean().optional()
 });
 
 export const coachMessageSchema = z.object({

@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     history: [],
     researchApiKey: parsed.data.researchApiKey,
     researchQuery: parsed.data.researchQuery,
+    browserUseApiKey: parsed.data.browserUseApiKey,
+    useBrowserUse: parsed.data.useBrowserUse,
     createdAt: now,
     updatedAt: now
   };

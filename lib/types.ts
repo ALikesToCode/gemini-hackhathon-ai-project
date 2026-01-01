@@ -227,6 +227,8 @@ export type CoachSession = {
   history: { role: "user" | "assistant"; content: string }[];
   researchApiKey?: string;
   researchQuery?: string;
+  browserUseApiKey?: string;
+  useBrowserUse?: boolean;
   createdAt: string;
   updatedAt: string;
 };
