@@ -14,22 +14,24 @@ const baseInputStyle: React.CSSProperties = {
     width: "100%",
     padding: "12px 16px",
     borderRadius: "var(--radius)",
-    border: "1px solid var(--border)",
-    backgroundColor: "var(--surface)",
+    border: "1px solid rgba(255, 255, 255, 0.1)", // Light border for dark theme
+    backgroundColor: "rgba(0, 0, 0, 0.2)", // Dark semi-transparent
     fontSize: "1rem",
-    color: "var(--ink)",
-    transition: "border-color 0.2s, box-shadow 0.2s",
+    color: "#fff", // White text
+    transition: "border-color 0.2s, box-shadow 0.2s, background-color 0.2s",
     outline: "none",
     fontFamily: "var(--font-sans)",
 };
 
 const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.target.style.borderColor = "var(--primary)";
-    e.target.style.boxShadow = "0 0 0 3px rgba(15, 118, 110, 0.1)";
+    e.target.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
+    e.target.style.boxShadow = "0 0 0 3px rgba(251, 191, 36, 0.15)";
 };
 
 const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>, hasError: boolean) => {
-    e.target.style.borderColor = hasError ? "var(--error)" : "var(--border)";
+    e.target.style.borderColor = hasError ? "var(--error)" : "rgba(255, 255, 255, 0.1)";
+    e.target.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
     e.target.style.boxShadow = "none";
 };
 

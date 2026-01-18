@@ -32,12 +32,12 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
     if (!started) {
         return (
-            <Card className="flex flex-col items-center justify-center py-20 gap-6 text-center">
-                <div className="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center mb-4">
+            <Card className="flex flex-col items-center justify-center py-20 gap-6 text-center glass border-white/10">
+                <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
                     <span className="text-4xl">📝</span>
                 </div>
-                <h3 className="text-2xl font-serif text-slate-800">Ready to test your knowledge?</h3>
-                <p className="text-slate-500 max-w-md">
+                <h3 className="text-2xl font-serif text-white">Ready to test your knowledge?</h3>
+                <p className="text-slate-400 max-w-md">
                     You have {pack.exam.sections.length} sections covering {pack.questions.length} questions.
                     The estimated time is {pack.exam.totalTimeMinutes} minutes.
                 </p>
@@ -54,7 +54,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
             {/* Sticky Timer */}
             <div className="sticky top-24 z-30 flex justify-center pointer-events-none">
-                <div className="bg-slate-900 text-white px-6 py-2 rounded-full shadow-lg font-mono font-bold text-lg pointer-events-auto">
+                <div className="bg-amber-400 text-slate-900 px-6 py-2 rounded-full shadow-lg font-mono font-bold text-lg pointer-events-auto border-2 border-slate-900">
                     {formatTime(timeLeft)}
                 </div>
             </div>
@@ -66,14 +66,14 @@ export const ExamView: React.FC<ExamViewProps> = ({
                     const currentAnswer = answers[q.id] || "";
 
                     return (
-                        <Card key={q.id} className={`transition-all duration-300 ${result ? (isCorrect ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30") : ""}`}>
+                        <Card key={q.id} variant="glass" className={`transition-all duration-300 border-white/5 ${result ? (isCorrect ? "border-green-500/30 bg-green-500/10" : "border-red-500/30 bg-red-500/10") : ""}`}>
                             <div className="flex justify-between items-start gap-4 mb-4">
                                 <div className="flex gap-3">
-                                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">
+                                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-amber-500 text-sm">
                                         {idx + 1}
                                     </span>
-                                    <div className="prose prose-slate max-w-none">
-                                        <p className="font-medium text-lg leading-relaxed">{q.stem}</p>
+                                    <div className="prose prose-invert max-w-none">
+                                        <p className="font-medium text-lg text-slate-200 leading-relaxed">{q.stem}</p>
                                     </div>
                                 </div>
                                 {result && (
@@ -87,10 +87,10 @@ export const ExamView: React.FC<ExamViewProps> = ({
                                 {q.options?.map((opt, optIdx) => (
                                     <label
                                         key={opt.id}
-                                        className={`flex items-center gap-3 p-4 rounded-xl border border-slate-200 cursor-pointer transition-all hover:bg-slate-50
-                                    ${currentAnswer === opt.id ? "ring-2 ring-teal-500 bg-teal-50/50 border-teal-500" : ""}
-                                    ${result && q.answer === opt.id ? "bg-green-100 border-green-300" : ""}
-                                    ${result && currentAnswer === opt.id && !isCorrect ? "bg-red-100 border-red-300" : ""}
+                                        className={`flex items-center gap-3 p-4 rounded-xl border border-white/5 cursor-pointer transition-all hover:bg-white/5
+                                    ${currentAnswer === opt.id ? "ring-2 ring-amber-500 bg-amber-500/10 border-amber-500" : ""}
+                                    ${result && q.answer === opt.id ? "bg-green-500/20 border-green-500/50" : ""}
+                                    ${result && currentAnswer === opt.id && !isCorrect ? "bg-red-500/20 border-red-500/50" : ""}
                                 `}
                                     >
                                         <input
@@ -100,9 +100,9 @@ export const ExamView: React.FC<ExamViewProps> = ({
                                             checked={currentAnswer === opt.id}
                                             onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
                                             disabled={!!result}
-                                            className="accent-teal-600 w-4 h-4"
+                                            className="accent-amber-500 w-4 h-4"
                                         />
-                                        <span className="text-slate-700">{opt.text}</span>
+                                        <span className="text-slate-300">{opt.text}</span>
                                     </label>
                                 ))}
                             </div>
@@ -118,9 +118,9 @@ export const ExamView: React.FC<ExamViewProps> = ({
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="mt-6 ml-11 p-4 bg-white rounded-xl border border-slate-200 text-sm animate-in fade-in">
-                                    <strong className="block mb-1 text-slate-900">Explanation</strong>
-                                    <p className="text-slate-600">{result.explanation}</p>
+                                <div className="mt-6 ml-11 p-4 bg-white/5 rounded-xl border border-white/10 text-sm animate-in fade-in">
+                                    <strong className="block mb-1 text-white">Explanation</strong>
+                                    <p className="text-slate-300">{result.explanation}</p>
                                 </div>
                             )}
                         </Card>
@@ -135,21 +135,21 @@ export const ExamView: React.FC<ExamViewProps> = ({
                     isLoading={remediationLoading}
                     disabled={Object.keys(results).length === 0}
                 >
-                    Generate Remediation Plan
+                    Remediation Plan
                 </Button>
             </div>
 
             {remediation && (
-                <Card className="bg-orange-50 border-orange-100">
-                    <h3 className="text-xl font-serif text-orange-900 mb-4">Remediation Plan</h3>
+                <Card className="bg-orange-500/10 border-orange-500/20">
+                    <h3 className="text-xl font-serif text-orange-400 mb-4">Remediation Plan</h3>
                     <div className="grid gap-4">
                         {remediation.map((item, i) => (
-                            <div key={i} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm">
-                                <div className="font-bold text-slate-800 mb-1">{item.topicTitle} ({item.topicId})</div>
-                                <p className="text-slate-600 text-sm mb-3">{item.advice}</p>
+                            <div key={i} className="bg-slate-900/50 p-4 rounded-xl border border-orange-500/10 shadow-sm">
+                                <div className="font-bold text-white mb-1">{item.topicTitle} ({item.topicId})</div>
+                                <p className="text-slate-300 text-sm mb-3">{item.advice}</p>
                                 <div className="flex gap-2 text-xs flex-wrap">
                                     {item.citations.map((res, r) => (
-                                        <a key={r} href={res.url} target="_blank" className="text-blue-600 underline hover:text-blue-800">
+                                        <a key={r} href={res.url} target="_blank" className="text-blue-400 underline hover:text-blue-300">
                                             {res.label}
                                         </a>
                                     ))}

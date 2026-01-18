@@ -15,6 +15,7 @@ import { Hero } from "../components/features/Hero";
 import { ConfigForm } from "../components/features/ConfigForm";
 import { JobProgress } from "../components/features/JobProgress";
 import { PackViewer } from "../components/features/PackViewer";
+import { PackList } from "../components/features/PackList";
 
 const DEFAULT_INPUT = "https://youtube.com/playlist?list=PL123_VERILEARN";
 const DEFAULT_PRO_MODEL = "gemini-3-pro-preview";
@@ -41,6 +42,10 @@ export default function Home() {
   const [language, setLanguage] = useState("en");
   const [examDate, setExamDate] = useState("");
 
+  // View Modes
+  const [viewMode, setViewMode] = useState<"landing" | "dashboard">("landing");
+  const [dashboardTab, setDashboardTab] = useState<"create" | "library">("create");
+
   // Vault / Files (Kept minimal for now as per refactor plan focusing on core flow)
   const [vaultNotes, setVaultNotes] = useState("");
   const [vaultFiles, setVaultFiles] = useState<File[]>([]);
@@ -48,9 +53,8 @@ export default function Home() {
 
   // Research
   const [researchSources, setResearchSources] = useState("");
-  const [researchApiKey, setResearchApiKey] = useState("");
+  const [researchApiKey, setResearchApiKey] = useState<string>("");
   const [researchQuery, setResearchQuery] = useState("");
-  const [browserUseApiKey, setBrowserUseApiKey] = useState("");
   const [includeResearch, setIncludeResearch] = useState(false);
   const [useDeepResearch, setUseDeepResearch] = useState(false);
   const [useVideoUnderstanding, setUseVideoUnderstanding] = useState(false);
@@ -62,18 +66,20 @@ export default function Home() {
   const [useFileSearch, setUseFileSearch] = useState(false);
   const [useInteractions, setUseInteractions] = useState(false);
   const [useBrowserUse, setUseBrowserUse] = useState(false);
-  const [resumeJobId, setResumeJobId] = useState("");
 
   // Keys & Models
   const [youtubeApiKey, setYoutubeApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [browserUseApiKey, setBrowserUseApiKey] = useState("");
   const [proModel, setProModel] = useState(DEFAULT_PRO_MODEL);
   const [flashModel, setFlashModel] = useState(DEFAULT_FLASH_MODEL);
+  const [resumeJobId, setResumeJobId] = useState("");
 
   // Job & Pack State
   const [job, setJob] = useState<JobStatus | null>(null);
   const [pack, setPack] = useState<Pack | null>(null);
   const [packList, setPackList] = useState<PackSummary[]>([]);
+  const [packListLoading, setPackListLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +122,8 @@ export default function Home() {
   // Sync to LocalStorage
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.youtube, youtubeApiKey); }, [youtubeApiKey]);
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.gemini, geminiApiKey); }, [geminiApiKey]);
+  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.pro, proModel); }, [proModel]);
+  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.flash, flashModel); }, [flashModel]);
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.research, researchApiKey); }, [researchApiKey]);
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.researchQuery, researchQuery); }, [researchQuery]);
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEYS.browserUse, browserUseApiKey); }, [browserUseApiKey]);
@@ -139,6 +147,24 @@ export default function Home() {
   }, [includeResearch]);
   // ... (Other keys can be synced similarly if needed, keeping it concise)
 
+  const loadPacks = useCallback(async () => {
+    setPackListLoading(true);
+    try {
+      const response = await fetch("/api/packs");
+      if (!response.ok) throw new Error("Failed to load packs");
+      const data = await response.json();
+      setPackList(data.packs ?? []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPackListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPacks();
+  }, [loadPacks]);
+
   const disconnectLiveSession = useCallback(() => {
     if (liveSessionRef.current) {
       liveSessionRef.current.close();
@@ -147,6 +173,21 @@ export default function Home() {
     liveBufferRef.current = "";
     setCoachBusy(false);
   }, []);
+
+  const resetPackView = useCallback(() => {
+    setPack(null);
+    setJob(null);
+    setExamAnswers({});
+    setExamResults({});
+    setExamStarted(false);
+    setExamTimeLeft(null);
+    setRemediation(null);
+    setRemediationLoading(false);
+    setCoachMessages([]);
+    setCoachSessionId(null);
+    setUseLiveApi(false);
+    disconnectLiveSession();
+  }, [disconnectLiveSession]);
 
   useEffect(() => {
     if (!useLiveApi) {
@@ -183,7 +224,18 @@ export default function Home() {
         if (packResponse.ok) {
           const packData = (await packResponse.json()) as Pack;
           setPack(packData);
-          setJob(null); // Clear job logic effectively moves to "View Pack" mode
+          setJob(null);
+          loadPacks();
+        }
+      }
+      if (data.status === "completed" || data.status === "failed") {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
         }
       }
     };
@@ -194,9 +246,38 @@ export default function Home() {
       handleUpdate(await response.json());
     };
 
-    interval = setInterval(pollStatus, 2000);
-    return () => { active = false; clearInterval(interval!); };
-  }, [job?.id]);
+    const startPolling = () => {
+      if (!interval) {
+        interval = setInterval(pollStatus, 2000);
+      }
+    };
+
+    if (typeof window !== "undefined" && "EventSource" in window) {
+      eventSource = new EventSource(`/api/status/stream/${job.id}`);
+      eventSource.onmessage = (event) => {
+        try {
+          handleUpdate(JSON.parse(event.data) as JobStatus);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      eventSource.onerror = () => {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        startPolling();
+      };
+    } else {
+      startPolling();
+    }
+
+    return () => {
+      active = false;
+      if (eventSource) eventSource.close();
+      if (interval) clearInterval(interval);
+    };
+  }, [job?.id, loadPacks]);
 
   // Timer
   useEffect(() => {
@@ -291,7 +372,7 @@ export default function Home() {
       const session = await ai.live.connect({
         model: liveModelRef.current,
         config: {
-          responseModalities: ["TEXT"],
+          responseModalities: ["TEXT" as any],
           systemInstruction,
           sessionResumption: {}
         },
@@ -334,7 +415,44 @@ export default function Home() {
     }
   };
 
+  const handleOpenPack = async (packId: string) => {
+    setError(null);
+    try {
+      const response = await fetch(`/api/study-pack/${packId}`);
+      if (!response.ok) throw new Error("Failed to load pack");
+      const packData = (await response.json()) as Pack;
+      resetPackView();
+      setPack(packData);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load saved pack.");
+    }
+  };
+
+  const handleDeletePack = async (packId: string) => {
+    try {
+      if (typeof window !== "undefined") {
+        const ok = window.confirm("Delete this saved pack? This cannot be undone.");
+        if (!ok) return;
+      }
+      const response = await fetch(`/api/study-pack/${packId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete pack");
+
+      if (pack?.id === packId) {
+        setPack(null); // Just clear pack, don't reset everything else
+      }
+      await loadPacks();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete the pack.");
+    }
+  };
+
   const handleGenerate = async () => {
+    if (!input.trim()) {
+      setError("Please provide a playlist or video URL.");
+      return;
+    }
     if (!youtubeApiKey || !geminiApiKey) {
       setError("Please provide both YouTube and Gemini API keys.");
       return;
@@ -342,10 +460,8 @@ export default function Home() {
 
     setIsSubmitting(true);
     setError(null);
+    // Don't reset view, just start job
     setPack(null);
-    setExamAnswers({});
-    setExamResults({});
-    setExamStarted(false);
 
     try {
       const researchUrls = researchSources
@@ -403,211 +519,168 @@ export default function Home() {
     }
   };
 
-  const handleAnswerCheck = async (questionId: string) => {
-    if (!pack || !examAnswers[questionId]) return;
-    try {
-      const response = await fetch("/api/submit-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId: pack.id, questionId, answer: examAnswers[questionId] })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setExamResults(prev => ({ ...prev, [questionId]: data }));
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const handleRemediation = async () => {
-    if (!pack) return;
-    setRemediationLoading(true);
-    try {
-      const incorrectIds = Object.values(examResults)
-        .filter(r => !r.correct)
-        .map(r => r.questionId);
-
-      const response = await fetch("/api/remediation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packId: pack.id,
-          incorrectQuestionIds: incorrectIds,
-          geminiApiKey,
-          model: proModel
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRemediation(data.remediation);
-      }
-    } catch (e) { console.error(e); }
-    finally { setRemediationLoading(false); }
-  };
-
-  const handleCoachSend = async (message: string) => {
-    if (!pack || !geminiApiKey) return;
-    const history = [...coachMessages, { role: "user" as const, content: message }];
-    setCoachMessages(history);
-    setCoachBusy(true);
-
-    try {
-      if (useLiveApi) {
-        const systemInstruction = buildCoachSystem(pack, coachMode);
-        try {
-          const session = await ensureLiveSession(systemInstruction);
-          setCoachMessages([...history, { role: "assistant", content: "" }]);
-          liveBufferRef.current = "";
-          session.sendClientContent({
-            turns: [
-              {
-                role: "user",
-                parts: [{ text: message }]
-              }
-            ],
-            turnComplete: true
-          });
-          return;
-        } catch (error) {
-          console.error(error);
-          setUseLiveApi(false);
-        }
-      }
-
-      // Simplified coach flow for this refactor
-      let sessionId = coachSessionId;
-      if (!sessionId) {
-        const sessionRes = await fetch("/api/coach/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            packId: pack.id,
-            mode: coachMode,
-            browserUseApiKey: browserUseApiKey || undefined,
-            useBrowserUse
-          })
-        });
-        if (sessionRes.ok) {
-          sessionId = (await sessionRes.json()).sessionId;
-          setCoachSessionId(sessionId);
-        } else throw new Error("Failed to init session");
-      }
-
-      const response = await fetch(`/api/coach/session/${sessionId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, geminiApiKey, model: proModel })
-      });
-
-      // Simple text response handling (not streaming for standard fetch simplicity here, 
-      // though `PackViewer` supports it if we pass the state correcty. 
-      // For now, let's assume non-streaming or full buffer for MVP refactor stability)
-      // Wait, the original code used streaming. I should preserve that if possible.
-      // But for code cleaner I'll just wait for full response or basic chunks.
-      // Let's stick to the existing logic but encapsulated.
-
-      if (response.body) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let assistantText = "";
-        setCoachMessages([...history, { role: "assistant", content: "" }]);
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          assistantText += decoder.decode(value, { stream: true });
-          setCoachMessages(prev => {
-            const updated = [...prev];
-            updated[updated.length - 1] = { role: "assistant", content: assistantText };
-            return updated;
-          });
-        }
-      }
-
-    } catch (e) { console.error(e); }
-    finally { setCoachBusy(false); }
-  };
-
-  const downloadPdf = () => pack && window.open(`/api/export/pdf?packId=${pack.id}`, "_blank");
-
   // --- Render ---
 
+  if (viewMode === "landing") {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4">
+        <Hero
+          onStart={() => setViewMode("dashboard")}
+          isLoading={false}
+        />
+      </main>
+    );
+  }
+
+  // Dashboard View
   return (
-    <main className="min-h-screen pb-20">
-      <div className="shell">
+    <main className="h-screen w-full flex overflow-hidden bg-[#0f172a] text-slate-200">
 
-        {/* Top Hero Section */}
-        {(!pack && !job) && (
-          <Hero
-            onStart={() => document.getElementById("config-form")?.scrollIntoView({ behavior: "smooth" })}
-            isLoading={isSubmitting}
-          />
-        )}
+      {/* Sidebar */}
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-white/5 bg-slate-900/40 backdrop-blur-xl flex flex-col z-50">
+        <div className="p-8">
+          <h1 className="text-2xl font-serif text-white tracking-tight">
+            VeriLearn <span className="text-amber-400">.</span>
+          </h1>
+        </div>
 
-        {/* Configuration Form - Hide when generating or viewing pack */}
-        {(!pack && !job) && (
-          <div id="config-form">
-            <ConfigForm
-              input={input} setInput={setInput}
-              examSize={examSize} setExamSize={setExamSize}
-              language={language} setLanguage={setLanguage}
-              examDate={examDate} setExamDate={setExamDate}
-              geminiApiKey={geminiApiKey} setGeminiApiKey={setGeminiApiKey}
-              youtubeApiKey={youtubeApiKey} setYoutubeApiKey={setYoutubeApiKey}
-              researchSources={researchSources} setResearchSources={setResearchSources}
-              includeResearch={includeResearch} setIncludeResearch={setIncludeResearch}
-              researchApiKey={researchApiKey} setResearchApiKey={setResearchApiKey}
-              researchQuery={researchQuery} setResearchQuery={setResearchQuery}
-              useDeepResearch={useDeepResearch} setUseDeepResearch={setUseDeepResearch}
-              useVideoUnderstanding={useVideoUnderstanding} setUseVideoUnderstanding={setUseVideoUnderstanding}
-              useFileSearch={useFileSearch} setUseFileSearch={setUseFileSearch}
-              useCodeExecution={useCodeExecution} setUseCodeExecution={setUseCodeExecution}
-              useInteractions={useInteractions} setUseInteractions={setUseInteractions}
-              vaultNotes={vaultNotes} setVaultNotes={setVaultNotes}
-              vaultFiles={vaultFiles} setVaultFiles={setVaultFiles}
-              vaultDocs={vaultDocs}
-              onVaultUpload={handleVaultUpload}
-              vaultUploadBusy={vaultUploadBusy}
-              browserUseApiKey={browserUseApiKey} setBrowserUseApiKey={setBrowserUseApiKey}
-              onGenerate={handleGenerate}
-              isSubmitting={isSubmitting}
-              error={error}
-            />
+        <nav className="flex-1 px-4 space-y-2">
+          <button
+            onClick={() => { setPack(null); setJob(null); setDashboardTab("create"); }}
+            className={`w-full text-left px-5 py-3.5 rounded-xl transition-all font-medium flex items-center gap-3 relative overflow-hidden group
+                ${!pack && !job && dashboardTab === "create"
+                ? "bg-white/5 text-amber-50 shadow-[0_0_20px_-5px_rgba(251,191,36,0.1)] border border-white/10"
+                : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+          >
+            {(!pack && !job && dashboardTab === "create") && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400 shadow-[0_0_10px_2px_rgba(251,191,36,0.5)]" />
+            )}
+            <span className="relative z-10">Create Pack</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setPack(null);
+              setJob(null);
+              setDashboardTab("library");
+              loadPacks();
+            }}
+            className={`w-full text-left px-5 py-3.5 rounded-xl transition-all font-medium flex items-center gap-3 relative overflow-hidden group
+              ${!pack && !job && dashboardTab === "library"
+                ? "bg-white/5 text-amber-50 shadow-[0_0_20px_-5px_rgba(251,191,36,0.1)] border border-white/10"
+                : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+          >
+            {(!pack && !job && dashboardTab === "library") && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400 shadow-[0_0_10px_2px_rgba(251,191,36,0.5)]" />
+            )}
+            <span className="relative z-10">My Library</span>
+          </button>
+        </nav>
+
+        <div className="p-4 border-t border-white/5 bg-black/20">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${geminiApiKey ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-slate-600"}`} />
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+              {geminiApiKey ? "System Online" : "Configuration Required"}
+            </span>
           </div>
-        )}
+        </div>
+      </aside>
 
-        {/* Job Progress */}
-        {job && <JobProgress job={job} />}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-slate-900/50 backdrop-blur-md z-10 shrink-0">
+          <h2 className="text-lg font-medium text-white">
+            {pack ? (pack.blueprint.title || "Viewing Pack") : (
+              job ? "Generating Pack..." : (
+                dashboardTab === "create" ? "Flash Configuration" : "Pack Library"
+              )
+            )}
+          </h2>
+          {pack && (
+            <button onClick={resetPackView} className="text-sm text-slate-400 hover:text-white transition-colors">
+              Close Viewer
+            </button>
+          )}
+        </header>
 
-        {/* Pack Viewer */}
-        {pack && (
-            <PackViewer
-              pack={pack}
-              examStarted={examStarted}
-              setExamStarted={setExamStarted}
-              examTimeLeft={examTimeLeft}
-              examAnswers={examAnswers}
-              setExamAnswers={setExamAnswers}
-              examResults={examResults}
-              onAnswerCheck={handleAnswerCheck}
-              remediation={remediation}
-              onRemediationRequest={handleRemediation}
-              remediationLoading={remediationLoading}
-              coachMessages={coachMessages}
-              onCoachSend={handleCoachSend}
-              coachBusy={coachBusy}
-              coachMode={coachMode}
-              setCoachMode={setCoachMode}
-              useLiveApi={useLiveApi}
-              setUseLiveApi={setUseLiveApi}
-              liveReady={Boolean(geminiApiKey)}
-              useBrowserUse={useBrowserUse}
-              setUseBrowserUse={setUseBrowserUse}
-              browserUseReady={Boolean(browserUseApiKey)}
-              onDownloadPdf={downloadPdf}
-            />
-        )}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+          <div className="max-w-5xl mx-auto pb-20">
 
+            {/* CONTENT AREA */}
+            {pack ? (
+              <PackViewer
+                key={pack.id}
+                pack={pack}
+                examStarted={examStarted}
+                setExamStarted={setExamStarted}
+                examTimeLeft={examTimeLeft}
+                examAnswers={examAnswers}
+                setExamAnswers={setExamAnswers}
+                examResults={examResults}
+                onAnswerCheck={handleAnswerCheck}
+                remediation={remediation}
+                onRemediationRequest={handleRemediation}
+                remediationLoading={remediationLoading}
+                coachMessages={coachMessages}
+                onCoachSend={handleCoachSend}
+                coachBusy={coachBusy}
+                coachMode={coachMode}
+                setCoachMode={setCoachMode}
+                useLiveApi={useLiveApi}
+                setUseLiveApi={setUseLiveApi}
+                liveReady={Boolean(geminiApiKey)}
+                useBrowserUse={useBrowserUse}
+                setUseBrowserUse={setUseBrowserUse}
+                browserUseReady={Boolean(browserUseApiKey)}
+                onDownloadPdf={downloadPdf}
+                onBack={resetPackView}
+              />
+            ) : job ? (
+              <JobProgress job={job} />
+            ) : dashboardTab === "create" ? (
+              <ConfigForm
+                input={input} setInput={setInput}
+                examSize={examSize} setExamSize={setExamSize}
+                language={language} setLanguage={setLanguage}
+                examDate={examDate} setExamDate={setExamDate}
+                geminiApiKey={geminiApiKey} setGeminiApiKey={setGeminiApiKey}
+                youtubeApiKey={youtubeApiKey} setYoutubeApiKey={setYoutubeApiKey}
+                proModel={proModel} setProModel={setProModel}
+                flashModel={flashModel} setFlashModel={setFlashModel}
+                resumeJobId={resumeJobId} setResumeJobId={setResumeJobId}
+                researchSources={researchSources} setResearchSources={setResearchSources}
+                includeResearch={includeResearch} setIncludeResearch={setIncludeResearch}
+                researchApiKey={researchApiKey} setResearchApiKey={setResearchApiKey}
+                researchQuery={researchQuery} setResearchQuery={setResearchQuery}
+                useDeepResearch={useDeepResearch} setUseDeepResearch={setUseDeepResearch}
+                useVideoUnderstanding={useVideoUnderstanding} setUseVideoUnderstanding={setUseVideoUnderstanding}
+                useFileSearch={useFileSearch} setUseFileSearch={setUseFileSearch}
+                useCodeExecution={useCodeExecution} setUseCodeExecution={setUseCodeExecution}
+                useInteractions={useInteractions} setUseInteractions={setUseInteractions}
+                vaultNotes={vaultNotes} setVaultNotes={setVaultNotes}
+                vaultFiles={vaultFiles} setVaultFiles={setVaultFiles}
+                vaultDocs={vaultDocs}
+                onVaultUpload={handleVaultUpload}
+                vaultUploadBusy={vaultUploadBusy}
+                browserUseApiKey={browserUseApiKey} setBrowserUseApiKey={setBrowserUseApiKey}
+                onGenerate={handleGenerate}
+                isSubmitting={isSubmitting}
+                error={error}
+              />
+            ) : (
+              <PackList
+                packs={packList}
+                isLoading={packListLoading}
+                onOpen={handleOpenPack}
+                onDelete={handleDeletePack}
+                onRefresh={loadPacks}
+              />
+            )}
+
+          </div>
+        </div>
       </div>
     </main>
   );

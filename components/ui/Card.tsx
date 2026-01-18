@@ -18,11 +18,11 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
             baseStyles.boxShadow = "var(--shadow)";
             baseStyles.border = "1px solid var(--border)";
         } else if (variant === "glass") {
-            baseStyles.backgroundColor = "rgba(255, 255, 255, 0.75)";
-            baseStyles.backdropFilter = "blur(16px)";
-            baseStyles.WebkitBackdropFilter = "blur(16px)";
-            baseStyles.border = "1px solid rgba(255, 255, 255, 0.5)";
-            baseStyles.boxShadow = "0 8px 32px 0 rgba(31, 38, 135, 0.05)";
+            baseStyles.backgroundColor = "rgba(15, 23, 42, 0.65)";
+            baseStyles.backdropFilter = "blur(12px)";
+            baseStyles.WebkitBackdropFilter = "blur(12px)";
+            baseStyles.border = "1px solid rgba(255, 255, 255, 0.1)";
+            baseStyles.boxShadow = "0 8px 32px 0 rgba(0, 0, 0, 0.3)";
         } else if (variant === "flat") {
             baseStyles.backgroundColor = "var(--surface-2)";
             baseStyles.border = "1px solid var(--border)";

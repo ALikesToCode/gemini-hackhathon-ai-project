@@ -20,6 +20,12 @@ interface ConfigFormProps {
     setYoutubeApiKey: (val: string) => void;
     browserUseApiKey: string;
     setBrowserUseApiKey: (val: string) => void;
+    proModel: string;
+    setProModel: (val: string) => void;
+    flashModel: string;
+    setFlashModel: (val: string) => void;
+    resumeJobId: string;
+    setResumeJobId: (val: string) => void;
 
     // Advanced Settings toggles (could be expanded)
     researchSources: string;
@@ -61,6 +67,9 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
     geminiApiKey, setGeminiApiKey,
     youtubeApiKey, setYoutubeApiKey,
     browserUseApiKey, setBrowserUseApiKey,
+    proModel, setProModel,
+    flashModel, setFlashModel,
+    resumeJobId, setResumeJobId,
     researchSources, setResearchSources,
     includeResearch, setIncludeResearch,
     researchApiKey, setResearchApiKey,
@@ -78,7 +87,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
     onGenerate, isSubmitting, error
 }) => {
     return (
-        <Card variant="glass" className="w-full max-w-4xl mx-auto -mt-8 relative z-20">
+        <Card variant="glass" className="w-full max-w-5xl mx-auto relative z-20">
             <div className="grid gap-6">
 
                 {/* Main Input */}
@@ -90,7 +99,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                         onChange={(e) => setInput(e.target.value)}
                         style={{ fontSize: "1.1rem", padding: "14px" }}
                     />
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-400">
                         Paste a link to a YouTube playlist containing the course lectures.
                     </p>
                 </div>
@@ -113,11 +122,11 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 </div>
 
                 <details className="group">
-                    <summary className="cursor-pointer text-sm font-medium text-slate-600 mb-2 hover:text-teal-600 transition-colors list-none flex items-center gap-2">
+                    <summary className="cursor-pointer text-sm font-medium text-slate-400 mb-2 hover:text-amber-400 transition-colors list-none flex items-center gap-2">
                         <span className="transform transition-transform group-open:rotate-90">►</span>
                         Advanced Configuration
                     </summary>
-                    <div className="grid gap-4 pl-4 pt-2 border-l-2 border-slate-100">
+                    <div className="grid gap-4 pl-4 pt-2 border-l-2 border-white/10">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <Input
                                 label="Exam Size (Questions)"
@@ -128,9 +137,9 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                                 onChange={(e) => setExamSize(Number(e.target.value))}
                             />
                             <div className="flex flex-col gap-1.5 w-full">
-                                <label className="text-sm font-semibold text-slate-900">Language</label>
+                                <label className="text-sm font-semibold text-white">Language</label>
                                 <select
-                                    className="w-full p-3 rounded-xl border border-slate-200 bg-white text-base focus:ring-2 focus:ring-teal-500 outline-none"
+                                    className="w-full p-3 rounded-xl border border-white/10 bg-slate-800 text-base text-white focus:ring-2 focus:ring-amber-500 outline-none"
                                     value={language}
                                     onChange={(e) => setLanguage(e.target.value)}
                                 >
@@ -149,6 +158,20 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                                 onChange={(e) => setExamDate(e.target.value)}
                             />
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Gemini Pro Model"
+                                placeholder="gemini-3-pro-preview"
+                                value={proModel}
+                                onChange={(e) => setProModel(e.target.value)}
+                            />
+                            <Input
+                                label="Gemini Flash Model"
+                                placeholder="gemini-3-flash-preview"
+                                value={flashModel}
+                                onChange={(e) => setFlashModel(e.target.value)}
+                            />
+                        </div>
                         <Textarea
                             label="Research Sources (One URL per line)"
                             placeholder="https://example.com/syllabus.pdf&#10;https://university.edu/course-page"
@@ -157,20 +180,22 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                             rows={4}
                         />
                         <div className="grid gap-3">
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={includeResearch}
                                     onChange={(e) => setIncludeResearch(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Include research blueprint</span>
                             </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={useDeepResearch}
                                     disabled={!includeResearch}
                                     onChange={(e) => setUseDeepResearch(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Use Deep Research agent (Gemini)</span>
                             </label>
@@ -200,35 +225,39 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                             onChange={(e) => setBrowserUseApiKey(e.target.value)}
                         />
                         <div className="grid gap-3">
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={useVideoUnderstanding}
                                     onChange={(e) => setUseVideoUnderstanding(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Fallback to Gemini video understanding</span>
                             </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={useFileSearch}
                                     onChange={(e) => setUseFileSearch(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Enable File Search grounding (Vault)</span>
                             </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={useCodeExecution}
                                     onChange={(e) => setUseCodeExecution(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Enable Code Execution verification</span>
                             </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={useInteractions}
                                     onChange={(e) => setUseInteractions(e.target.checked)}
+                                    className="accent-amber-500 w-4 h-4"
                                 />
                                 <span>Use Interactions API for structured output</span>
                             </label>
@@ -240,14 +269,21 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                             onChange={(e) => setVaultNotes(e.target.value)}
                             rows={3}
                         />
+                        <Input
+                            label="Resume Job ID (Optional)"
+                            placeholder="job_..."
+                            value={resumeJobId}
+                            onChange={(e) => setResumeJobId(e.target.value)}
+                        />
                         <div className="grid gap-3">
                             <div className="flex flex-col gap-2">
-                                <label className="text-sm font-semibold text-slate-900">
+                                <label className="text-sm font-semibold text-white">
                                     Vault Docs (PDF/TXT)
                                 </label>
                                 <input
                                     type="file"
                                     multiple
+                                    className="text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
                                     onChange={(e) => setVaultFiles(Array.from(e.target.files ?? []))}
                                 />
                             </div>
@@ -260,7 +296,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                                 {vaultUploadBusy ? "Uploading..." : "Upload Vault Files"}
                             </Button>
                             {vaultDocs.length ? (
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-400">
                                     Uploaded: {vaultDocs.map((doc) => doc.name).join(", ")}
                                 </div>
                             ) : null}

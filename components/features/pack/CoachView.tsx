@@ -43,14 +43,14 @@ export const CoachView: React.FC<CoachViewProps> = ({
     };
 
     return (
-        <Card className="h-[600px] flex flex-col p-0 overflow-hidden bg-white shadow-2xl border-slate-200">
+        <Card variant="glass" className="h-[600px] flex flex-col p-0 overflow-hidden border-white/10">
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-white/10 bg-white/5">
                 <div className="flex items-center gap-2">
-                    <label className="text-sm font-semibold text-slate-700">Mode</label>
+                    <label className="text-sm font-semibold text-slate-300">Mode</label>
                     <select
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        className="rounded-lg border border-white/10 bg-slate-800 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
                         value={mode}
                         onChange={(e) => setMode(e.target.value as "coach" | "viva" | "assist")}
                     >
@@ -59,47 +59,49 @@ export const CoachView: React.FC<CoachViewProps> = ({
                         <option value="assist">Assist</option>
                     </select>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-slate-600">
+                <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                     <input
                         type="checkbox"
                         checked={useLiveApi}
                         disabled={!liveReady || mode === "assist"}
                         onChange={(e) => setUseLiveApi(e.target.checked)}
+                        className="accent-amber-500 w-4 h-4"
                     />
                     <span>Use Gemini Live API (ephemeral token)</span>
                 </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600">
+                <label className="flex items-center gap-2 text-sm text-slate-300 hover:text-white cursor-pointer select-none">
                     <input
                         type="checkbox"
                         checked={useBrowserUse}
                         disabled={!browserUseReady || mode !== "assist"}
                         onChange={(e) => setUseBrowserUse(e.target.checked)}
+                        className="accent-amber-500 w-4 h-4"
                     />
                     <span>Use Browser Use Cloud (Assist)</span>
                 </label>
             </div>
             {mode === "assist" && useBrowserUse ? (
-                <div className="px-6 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-100">
+                <div className="px-6 py-2 text-xs text-slate-400 bg-white/5 border-b border-white/10">
                     Tip: prefix your message with <strong>browser:</strong> to launch a Browser Use task.
                 </div>
             ) : null}
             {mode !== "assist" && useLiveApi ? (
-                <div className="px-6 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-100">
+                <div className="px-6 py-2 text-xs text-slate-400 bg-white/5 border-b border-white/10">
                     Live mode connects directly to Gemini with short-lived ephemeral tokens.
                 </div>
             ) : null}
             {mode === "assist" && !browserUseReady ? (
-                <div className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-slate-100">
+                <div className="px-6 py-2 text-xs text-slate-500 bg-white/5 border-b border-white/10">
                     Add a Browser Use API key in the config form to enable Browser Use tasks.
                 </div>
             ) : null}
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent">
                 {messages.length === 0 && (
                     <div className="text-center py-20 opacity-50">
                         <div className="text-4xl mb-4">💬</div>
-                        <h3 className="font-serif text-xl text-slate-700">I'm your AI Coach</h3>
+                        <h3 className="font-serif text-xl text-slate-300">I'm your AI Coach</h3>
                         <p className="text-slate-500">Ask me anything about your lectures.</p>
                     </div>
                 )}
@@ -111,8 +113,8 @@ export const CoachView: React.FC<CoachViewProps> = ({
                             <div
                                 className={`max-w-[80%] rounded-2xl p-4 shadow-sm text-sm leading-relaxed
                         ${isUser
-                                        ? "bg-teal-600 text-white rounded-tr-none"
-                                        : "bg-white border border-slate-200 text-slate-800 rounded-tl-none"
+                                        ? "bg-amber-600 text-white rounded-tr-none"
+                                        : "bg-white/10 border border-white/10 text-slate-200 rounded-tl-none"
                                     }`}
                             >
                                 {msg.content}
@@ -122,7 +124,7 @@ export const CoachView: React.FC<CoachViewProps> = ({
                 })}
                 {isBusy && (
                     <div className="flex justify-start">
-                        <div className="bg-white border border-slate-200 rounded-2xl p-4 rounded-tl-none flex gap-1">
+                        <div className="bg-white/10 border border-white/10 rounded-2xl p-4 rounded-tl-none flex gap-1">
                             <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
                             <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75"></span>
                             <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150"></span>
@@ -133,9 +135,9 @@ export const CoachView: React.FC<CoachViewProps> = ({
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-white border-t border-slate-100 flex gap-4">
+            <div className="p-4 bg-white/5 border-t border-white/10 flex gap-4">
                 <input
-                    className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+                    className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-white placeholder-slate-500"
                     placeholder="Ask a question..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

@@ -44,6 +44,7 @@ interface PackViewerProps {
 
     // Export Actions
     onDownloadPdf: () => void;
+    onBack?: () => void;
 }
 
 export const PackViewer: React.FC<PackViewerProps> = ({
@@ -58,7 +59,8 @@ export const PackViewer: React.FC<PackViewerProps> = ({
     coachMode, setCoachMode,
     useLiveApi, setUseLiveApi, liveReady,
     useBrowserUse, setUseBrowserUse, browserUseReady,
-    onDownloadPdf
+    onDownloadPdf,
+    onBack
 }) => {
     const [view, setView] = useState<ViewMode>("schedule");
     const openExport = (path: string) => {
@@ -72,20 +74,20 @@ export const PackViewer: React.FC<PackViewerProps> = ({
             {/* Header / Tabs */}
             <Card variant="glass" padding="sm" className="sticky top-4 z-40 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3 px-2">
-                    <h2 className="text-xl font-serif text-slate-800">
+                    <h2 className="text-xl font-serif text-white">
                         {pack.blueprint.title || "Exam Pack"}
                     </h2>
                     <Badge color="primary">{pack.blueprint.topics.length} Topics</Badge>
                 </div>
 
-                <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                     {(["schedule", "exam", "coach"] as ViewMode[]).map((mode) => (
                         <button
                             key={mode}
                             onClick={() => setView(mode)}
                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${view === mode
-                                ? "bg-white text-teal-700 shadow-sm"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                                ? "bg-slate-800 text-amber-500 shadow-sm border border-white/10"
+                                : "text-slate-400 hover:text-white hover:bg-white/10"
                                 }`}
                         >
                             {mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -94,6 +96,11 @@ export const PackViewer: React.FC<PackViewerProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                    {onBack ? (
+                        <Button variant="ghost" size="sm" onClick={onBack}>
+                            Back to Builder
+                        </Button>
+                    ) : null}
                     <Button variant="secondary" size="sm" onClick={onDownloadPdf}>
                         Download PDF
                     </Button>

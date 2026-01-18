@@ -2,9 +2,9 @@ import { getJob } from "../../../../../lib/store";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const { jobId } = params;
+  const { jobId } = await params;
   const job = await getJob(jobId);
   if (!job) {
     return new Response(JSON.stringify({ error: "Job not found" }), {

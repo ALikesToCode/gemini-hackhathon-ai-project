@@ -15,10 +15,10 @@ import { buildComputerUseTools, buildFileSearchTools } from "../../../../../lib/
 
 export async function GET(
   _request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
-  const { sessionId } = params;
+  const { sessionId } = await params;
   const session = await getCoachSession(sessionId);
   if (!session) {
     const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -33,10 +33,10 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
-  const { sessionId } = params;
+  const { sessionId } = await params;
   const removed = await deleteCoachSession(sessionId);
   if (!removed) {
     const response = NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -50,10 +50,10 @@ export async function DELETE(
 
 export async function POST(
   request: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const traceId = makeId("trace");
-  const { sessionId } = params;
+  const { sessionId } = await params;
   const body = await request.json().catch(() => null);
   const parsed = coachMessageSchema.safeParse({
     ...body,

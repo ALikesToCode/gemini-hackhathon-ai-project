@@ -7,7 +7,20 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ className = "", variant = "primary", size = "md", isLoading, children, disabled, ...props }, ref) => {
+    ({
+        className = "",
+        variant = "primary",
+        size = "md",
+        isLoading,
+        children,
+        disabled,
+        style: styleProp,
+        onMouseEnter,
+        onMouseLeave,
+        onMouseDown,
+        onMouseUp,
+        ...props
+    }, ref) => {
 
         // Base styles
         const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed";
@@ -66,10 +79,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             justifyContent: "center",
             border: variant === "secondary" ? "1px solid var(--border)" : "none",
             backgroundColor: variant === "primary" ? "var(--primary)" :
-                variant === "danger" ? "#fee2e2" :
-                    variant === "secondary" ? "var(--surface)" : "transparent",
-            color: variant === "primary" ? "white" :
-                variant === "danger" ? "#b91c1c" :
+                variant === "danger" ? "rgba(239, 68, 68, 0.2)" :
+                    variant === "secondary" ? "var(--surface-2)" : "transparent",
+            color: variant === "primary" ? "#0f172a" : // Dark text on Gold
+                variant === "danger" ? "#f87171" :
                     variant === "secondary" ? "var(--ink)" : "var(--ink-secondary)",
             padding: size === "sm" ? "6px 12px" : size === "md" ? "10px 20px" : "14px 24px",
             fontSize: size === "sm" ? "0.875rem" : size === "md" ? "1rem" : "1.125rem",
@@ -77,38 +90,42 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             cursor: disabled || isLoading ? "not-allowed" : "pointer",
             opacity: disabled ? 0.6 : 1,
             transition: "all 0.2s ease",
-            fontWeight: 600,
-            boxShadow: variant === "primary" ? "0 4px 12px rgba(15, 118, 110, 0.3)" : "none",
-            ...props.style
+            fontWeight: 700,
+            boxShadow: variant === "primary" ? "0 4px 12px rgba(251, 191, 36, 0.3)" : "none",
+            ...styleProp
         };
 
         return (
             <button
                 ref={ref}
                 disabled={disabled || isLoading}
-                style={style}
                 {...props}
+                style={style}
                 onMouseEnter={(e) => {
                     if (!disabled && !isLoading) {
                         e.currentTarget.style.transform = "translateY(-1px)";
-                        if (variant === "primary") e.currentTarget.style.boxShadow = "0 6px 16px rgba(15, 118, 110, 0.4)";
+                        if (variant === "primary") e.currentTarget.style.boxShadow = "0 6px 16px rgba(251, 191, 36, 0.4)";
                     }
+                    onMouseEnter?.(e);
                 }}
                 onMouseLeave={(e) => {
                     if (!disabled && !isLoading) {
                         e.currentTarget.style.transform = "translateY(0)";
-                        if (variant === "primary") e.currentTarget.style.boxShadow = "0 4px 12px rgba(15, 118, 110, 0.3)";
+                        if (variant === "primary") e.currentTarget.style.boxShadow = "0 4px 12px rgba(251, 191, 36, 0.3)";
                     }
+                    onMouseLeave?.(e);
                 }}
                 onMouseDown={(e) => {
                     if (!disabled && !isLoading) {
                         e.currentTarget.style.transform = "translateY(1px)";
                     }
+                    onMouseDown?.(e);
                 }}
                 onMouseUp={(e) => {
                     if (!disabled && !isLoading) {
                         e.currentTarget.style.transform = "translateY(-1px)";
                     }
+                    onMouseUp?.(e);
                 }}
             >
                 {isLoading ? (
